@@ -2,15 +2,16 @@ import { GoogleGenAI, Type } from "@google/genai";
 import { ParsedTransactionData, CATEGORIES } from "../types";
 
 export const parseTransactionWithAI = async (text: string): Promise<ParsedTransactionData> => {
+  // The API key must be obtained exclusively from the environment variable process.env.API_KEY
   const apiKey = process.env.API_KEY;
   
   if (!apiKey) {
-    throw new Error("API Key 未配置。");
+    throw new Error("API Key not found. Please ensure process.env.API_KEY is set.");
   }
 
   const ai = new GoogleGenAI({ apiKey });
-
   const now = new Date();
+
   const systemInstruction = `
     你是一个专业的记账助手。
     当前时间: ${now.toISOString()} (${now.toLocaleString('zh-CN')})。
@@ -27,27 +28,41 @@ export const parseTransactionWithAI = async (text: string): Promise<ParsedTransa
       model: 'gemini-3-flash-preview',
       contents: text,
       config: {
-        systemInstruction,
+        systemInstruction: systemInstruction,
         responseMimeType: "application/json",
         responseSchema: {
           type: Type.OBJECT,
           properties: {
-            amount: { type: Type.NUMBER },
-            category: { type: Type.STRING },
-            description: { type: Type.STRING },
-            date: { type: Type.STRING }
+            amount: { 
+              type: Type.NUMBER, 
+              description: "The transaction amount." 
+            },
+            category: { 
+              type: Type.STRING, 
+              description: `The category of the transaction. Must be one of: ${CATEGORIES.join(', ')}` 
+            },
+            description: { 
+              type: Type.STRING, 
+              description: "A short description of the transaction." 
+            },
+            date: { 
+              type: Type.STRING, 
+              description: "The date of the transaction in ISO 8601 format." 
+            },
           },
-          required: ["amount", "category", "description", "date"]
-        }
+          required: ["amount", "category", "description", "date"],
+        },
       }
     });
 
-    const jsonContent = response.text;
-    if (!jsonContent) throw new Error("AI 未返回有效内容");
+    const jsonText = response.text;
+    if (!jsonText) {
+      throw new Error("AI did not return any text.");
+    }
 
-    return JSON.parse(jsonContent) as ParsedTransactionData;
+    return JSON.parse(jsonText) as ParsedTransactionData;
   } catch (e: any) {
-    console.error("AI 解析错误", e);
-    throw new Error(e.message || "AI 解析失败");
+    console.error("AI Parsing Error", e);
+    throw new Error(e.message || "AI parsing failed");
   }
 };
