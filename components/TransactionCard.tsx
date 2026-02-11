@@ -1,6 +1,6 @@
 import React from 'react';
 import { Transaction } from '../types';
-import { Coffee, Car, ShoppingBag, Film, Activity, Home, CreditCard, HelpCircle } from 'lucide-react';
+import { Coffee, Car, ShoppingBag, Film, Activity, Home, CreditCard, HelpCircle, ArrowRightLeft, TrendingUp } from 'lucide-react';
 
 interface Props {
   transaction: Transaction;
@@ -9,6 +9,7 @@ interface Props {
 
 export const TransactionCard: React.FC<Props> = ({ transaction, onDelete }) => {
   const dateObj = new Date(transaction.date);
+  const isIncome = transaction.type === 'income';
   
   const getIcon = (category: string) => {
     switch(category) {
@@ -19,26 +20,28 @@ export const TransactionCard: React.FC<Props> = ({ transaction, onDelete }) => {
       case '医疗': return <Activity className="w-5 h-5 text-green-500" />;
       case '生活': return <Home className="w-5 h-5 text-yellow-500" />;
       case '工资': return <CreditCard className="w-5 h-5 text-emerald-500" />;
+      case '理财': return <TrendingUp className="w-5 h-5 text-red-500" />;
+      case '转账': return <ArrowRightLeft className="w-5 h-5 text-indigo-500" />;
       default: return <HelpCircle className="w-5 h-5 text-gray-500" />;
     }
   };
 
   return (
-    <div className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 flex items-center justify-between mb-3 group">
+    <div className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 flex items-center justify-between mb-3 group transition-all hover:shadow-md">
       <div className="flex items-center gap-4">
-        <div className="w-10 h-10 rounded-full bg-gray-50 flex items-center justify-center">
+        <div className={`w-10 h-10 rounded-full flex items-center justify-center ${isIncome ? 'bg-green-50' : 'bg-gray-50'}`}>
           {getIcon(transaction.category)}
         </div>
         <div>
           <h3 className="font-semibold text-gray-800 text-sm">{transaction.description}</h3>
           <p className="text-xs text-gray-400">
-            {dateObj.toLocaleDateString('zh-CN')} • {dateObj.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })}
+            {dateObj.toLocaleDateString('zh-CN', {month: 'short', day: 'numeric'})} • {dateObj.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })}
           </p>
         </div>
       </div>
       <div className="text-right">
-        <span className={`font-bold block ${transaction.category === '工资' ? 'text-green-600' : 'text-gray-900'}`}>
-          {transaction.category === '工资' ? '+' : '-'}¥{transaction.amount.toFixed(2)}
+        <span className={`font-bold block text-lg ${isIncome ? 'text-green-600' : 'text-gray-900'}`}>
+          {isIncome ? '+' : '-'}¥{transaction.amount.toFixed(2)}
         </span>
         <button 
           onClick={() => onDelete(transaction.id)}

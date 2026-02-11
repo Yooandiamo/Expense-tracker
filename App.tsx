@@ -52,13 +52,17 @@ const App: React.FC = () => {
     setTransactions(prev => prev.filter(t => t.id !== id));
   };
 
+  // Calculate Totals based on Type
   const totalBalance = transactions.reduce((sum, t) => {
-    // Assuming salary is income, others are expenses for simple calculation
-    return t.category === '工资' ? sum + t.amount : sum - t.amount;
+    return t.type === 'income' ? sum + t.amount : sum - t.amount;
   }, 0);
 
   const totalExpense = transactions
-    .filter(t => t.category !== '工资')
+    .filter(t => t.type === 'expense')
+    .reduce((sum, t) => sum + t.amount, 0);
+  
+  const totalIncome = transactions
+    .filter(t => t.type === 'income')
     .reduce((sum, t) => sum + t.amount, 0);
 
   return (
@@ -86,17 +90,16 @@ const App: React.FC = () => {
           <div className="bg-red-50 px-4 py-3 rounded-2xl flex-1">
              <div className="flex items-center gap-2 mb-1">
                <div className="w-2 h-2 rounded-full bg-red-500"></div>
-               <span className="text-xs font-bold text-red-400 uppercase">支出</span>
+               <span className="text-xs font-bold text-red-400 uppercase">本月支出</span>
              </div>
              <p className="font-bold text-lg text-red-600">¥{totalExpense.toFixed(2)}</p>
           </div>
            <div className="bg-green-50 px-4 py-3 rounded-2xl flex-1">
              <div className="flex items-center gap-2 mb-1">
                <div className="w-2 h-2 rounded-full bg-green-500"></div>
-               <span className="text-xs font-bold text-green-400 uppercase">收入</span>
+               <span className="text-xs font-bold text-green-400 uppercase">本月收入</span>
              </div>
-             {/* Simple calculation for demo: Income = Balance + Expense */}
-             <p className="font-bold text-lg text-green-600">¥{(totalBalance + totalExpense).toFixed(2)}</p>
+             <p className="font-bold text-lg text-green-600">¥{totalIncome.toFixed(2)}</p>
           </div>
         </div>
       </header>

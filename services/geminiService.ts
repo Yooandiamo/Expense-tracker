@@ -1,7 +1,6 @@
 import { ParsedTransactionData, CATEGORIES } from "../types";
 
 export const parseTransactionWithAI = async (text: string): Promise<ParsedTransactionData> => {
-  // 1. 获取环境变量 (Vite 标准方式)
   const apiKey = import.meta.env.VITE_API_KEY;
   
   if (!apiKey) {
@@ -10,40 +9,44 @@ export const parseTransactionWithAI = async (text: string): Promise<ParsedTransa
 
   const now = new Date();
   
-  // 2. 构建 Prompt (针对 OCR 优化)
+  // 构建增强版 Prompt
   const systemInstruction = `
-    你是一个智能记账助手。用户会通过 iOS 快捷指令发送一段文本，这段文本通常是**手机屏幕截图的 OCR 识别结果**。
-    
-    内容可能包含：
-    - 支付成功的提示 (如 "支付成功", "交易完成")
-    - 很多无关的 UI 噪音 (如 "返回", "完成", 顶部状态栏时间, 电池电量等)
-    - 关键交易信息：金额、收款方(商户名)、交易时间。
+    你是一个专业的账单识别助手。用户会传入一段来自手机屏幕截图的 OCR 文本。
+    请分析文本，提取一笔交易的关键信息。
 
-    当前系统时间: ${now.toISOString()} (${now.toLocaleString('zh-CN')})。
+    当前参考时间: ${now.toISOString()} (${now.toLocaleString('zh-CN')})。
 
-    请严格执行以下任务：
-    1. **金额 (amount)**: 提取实际支付金额。忽略余额或积分。
-    2. **描述 (description)**: 提取收款方名称或商品名称作为描述 (例如 "星巴克", "滴滴出行", "7-Eleven")。如果找不到，用简短的动作描述 (如 "扫码支付")。
-    3. **分类 (category)**: 根据描述自动归类为以下之一: ${CATEGORIES.join(', ')}。
-    4. **日期 (date)**: 尝试从文本中提取具体的交易时间。如果文本中包含 "刚刚", "今天" 或未包含具体日期，则使用当前系统时间。
+    请提取以下字段 (JSON格式):
+    1. **amount (数字)**: 交易金额。永远返回正数。
+    2. **type (字符串)**: 
+       - "income": 如果包含 "收款", "收到", "转入", "退款", "工资", "+"号等关键词。
+       - "expense": 如果包含 "付款", "支付", "消费", "支出", "扣款", "-"号，或者是普通的购买页面。
+    3. **description (字符串)**: 交易对象或商品名称 (如 "星巴克", "滴滴", "李四的转账")。
+    4. **category (字符串)**: 从以下列表中选择最匹配的一个: [${CATEGORIES.join(', ')}]. 
+       - 如果是收入，通常是 "工资", "理财", "转账" 或 "其他"。
+    5. **date (ISO字符串)**: 提取交易发生的具体日期和时间。
+       - 格式要求: YYYY-MM-DDTHH:mm:ss.sssZ
+       - 如果只有 "14:30" 这种时间，结合当前日期补全。
+       - 如果有 "昨天", "星期二" 等相对时间，结合当前参考时间计算。
+       - 如果完全找不到时间，使用当前时间。
+
+    OCR 文本噪音处理:
+    - 忽略顶部状态栏 (如 "9:41", "5G", 电量)。
+    - 忽略底部导航栏 (如 "返回", "完成").
+    - 优先识别金额最大的数字作为交易金额 (忽略余额)。
+
+    示例输入:
+    "支付成功 -58.00 肯德基 12:30"
+    示例输出:
+    {"amount": 58.0, "type": "expense", "category": "餐饮", "description": "肯德基", "date": "2023-..."}
     
-    请务必返回合法的 JSON 格式对象，不要包含 Markdown 格式。
-    
-    OCR 文本示例输入:
-    "9:41 4G 
-     < 返回
-     支付成功
-     ¥ 35.50
-     收款方
-     肯德基(KFC)
-     完成"
-    
-    期望输出:
-    {"amount": 35.5, "category": "餐饮", "description": "肯德基", "date": "..."}
+    示例输入:
+    "收到王五转账 +2000.00"
+    示例输出:
+    {"amount": 2000.0, "type": "income", "category": "转账", "description": "王五", "date": "2023-..."}
   `;
 
   try {
-    // 3. 调用 DeepSeek API
     const response = await fetch('https://api.deepseek.com/chat/completions', {
       method: 'POST',
       headers: {
@@ -63,22 +66,18 @@ export const parseTransactionWithAI = async (text: string): Promise<ParsedTransa
 
     if (!response.ok) {
       const errorText = await response.text();
-      throw new Error(`API 请求失败 (${response.status}): ${errorText}`);
+      throw new Error(`API 请求失败 (${response.status})`);
     }
 
     const data = await response.json();
     const content = data.choices[0]?.message?.content;
 
-    if (!content) {
-      throw new Error("AI 未返回有效内容");
-    }
+    if (!content) throw new Error("AI 未返回内容");
 
-    // 4. 清理可能存在的 Markdown 标记并解析 JSON
     const cleanContent = content.replace(/```json\s*|\s*```/g, '').trim();
-
     return JSON.parse(cleanContent) as ParsedTransactionData;
   } catch (e: any) {
     console.error("AI 解析错误", e);
-    throw new Error(e.message || "智能解析失败，无法识别屏幕内容");
+    throw new Error("无法识别截图内容，请确保截图包含金额和文字信息。");
   }
 };

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { parseTransactionWithAI } from '../services/geminiService';
 import { ParsedTransactionData, CATEGORIES } from '../types';
 import { Button } from './Button';
-import { Sparkles, X, Check, Mic, ScanText } from 'lucide-react';
+import { Sparkles, X, Check, Mic, ScanText, ArrowDownCircle, ArrowUpCircle } from 'lucide-react';
 
 interface Props {
   onAdd: (data: ParsedTransactionData) => void;
@@ -16,7 +16,6 @@ export const SmartEntry: React.FC<Props> = ({ onAdd, onClose, initialText = '' }
   const [parsedData, setParsedData] = useState<ParsedTransactionData | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  // Auto-process if initialText is provided (e.g. from URL/Shortcut)
   useEffect(() => {
     if (initialText) {
       handleParse();
@@ -47,13 +46,15 @@ export const SmartEntry: React.FC<Props> = ({ onAdd, onClose, initialText = '' }
   };
 
   return (
-    <div className="fixed inset-0 bg-black/30 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center p-4">
-      <div className="bg-white w-full max-w-md rounded-3xl p-6 shadow-2xl animate-slide-up">
+    <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center p-4 animate-fade-in">
+      <div className="bg-white w-full max-w-md rounded-3xl p-6 shadow-2xl animate-slide-up overflow-hidden">
         
         <div className="flex justify-between items-center mb-6">
           <div className="flex items-center gap-2 text-blue-600">
             <Sparkles className="w-5 h-5" />
-            <h2 className="font-bold text-lg">AI 智能记账 (DeepSeek)</h2>
+            <h2 className="font-bold text-lg">
+              {parsedData ? '识别结果' : 'AI 智能记账'}
+            </h2>
           </div>
           <button onClick={onClose} className="p-2 bg-gray-100 rounded-full hover:bg-gray-200">
             <X className="w-5 h-5 text-gray-600" />
@@ -66,7 +67,7 @@ export const SmartEntry: React.FC<Props> = ({ onAdd, onClose, initialText = '' }
               <textarea
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
-                placeholder="在此粘贴文字，或者通过快捷指令传入屏幕截图文字..."
+                placeholder="正在等待快捷指令输入，或在此粘贴文字..."
                 className="w-full p-4 bg-gray-50 rounded-2xl border-none focus:ring-2 focus:ring-blue-500 text-lg resize-none h-32"
                 autoFocus
               />
@@ -75,7 +76,7 @@ export const SmartEntry: React.FC<Props> = ({ onAdd, onClose, initialText = '' }
               </div>
             </div>
 
-            {error && <p className="text-red-500 mb-4 text-sm bg-red-50 p-3 rounded-lg">{error}</p>}
+            {error && <p className="text-red-500 mb-4 text-xs bg-red-50 p-3 rounded-lg border border-red-100">{error}</p>}
 
             <Button 
               onClick={handleParse} 
@@ -83,67 +84,94 @@ export const SmartEntry: React.FC<Props> = ({ onAdd, onClose, initialText = '' }
               className="w-full"
               disabled={!input.trim()}
             >
-              {initialText ? '正在分析屏幕内容...' : '开始分析'}
+              {initialText ? '正在分析屏幕...' : '开始分析'}
             </Button>
           </>
         ) : (
-          <div className="space-y-4">
-             <div className="bg-blue-50 p-4 rounded-xl border border-blue-100">
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="text-xs text-blue-400 uppercase font-bold tracking-wider">金额</label>
-                    <input 
-                      type="number" 
-                      value={parsedData.amount}
-                      onChange={(e) => setParsedData({...parsedData, amount: parseFloat(e.target.value)})}
-                      className="block w-full bg-transparent text-2xl font-bold text-blue-900 border-b border-blue-200 focus:outline-none focus:border-blue-500"
-                    />
+          <div className="space-y-5">
+             {/* 核心金额卡片 */}
+             <div className={`p-5 rounded-2xl border transition-colors ${
+               parsedData.type === 'income' ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'
+             }`}>
+                <div className="flex justify-between items-center mb-4">
+                  {/* 类型切换开关 */}
+                  <div className="flex bg-white/60 p-1 rounded-lg">
+                     <button
+                       onClick={() => setParsedData({...parsedData, type: 'expense'})}
+                       className={`px-3 py-1 rounded-md text-xs font-bold flex items-center gap-1 transition-all ${
+                         parsedData.type === 'expense' ? 'bg-white shadow-sm text-red-600' : 'text-gray-400'
+                       }`}
+                     >
+                       <ArrowUpCircle className="w-3 h-3" /> 支出
+                     </button>
+                     <button
+                       onClick={() => setParsedData({...parsedData, type: 'income'})}
+                       className={`px-3 py-1 rounded-md text-xs font-bold flex items-center gap-1 transition-all ${
+                         parsedData.type === 'income' ? 'bg-white shadow-sm text-green-600' : 'text-gray-400'
+                       }`}
+                     >
+                       <ArrowDownCircle className="w-3 h-3" /> 收入
+                     </button>
                   </div>
-                  <div>
-                    <label className="text-xs text-blue-400 uppercase font-bold tracking-wider">日期</label>
-                    <input 
-                      type="datetime-local" 
-                      value={parsedData.date.substring(0, 16)}
-                      onChange={(e) => setParsedData({...parsedData, date: new Date(e.target.value).toISOString()})}
-                      className="block w-full bg-transparent text-sm font-medium text-blue-900 pt-2 border-b border-blue-200 focus:outline-none focus:border-blue-500"
-                    />
-                  </div>
+                  
+                  {/* 日期选择 */}
+                  <input 
+                    type="datetime-local" 
+                    value={parsedData.date.substring(0, 16)}
+                    onChange={(e) => setParsedData({...parsedData, date: new Date(e.target.value).toISOString()})}
+                    className="bg-transparent text-xs font-medium text-gray-500 text-right focus:outline-none"
+                  />
+                </div>
+
+                <div className="relative">
+                  <span className={`absolute top-0 left-0 text-xl font-bold ${parsedData.type === 'income' ? 'text-green-600' : 'text-red-600'}`}>¥</span>
+                  <input 
+                    type="number" 
+                    value={parsedData.amount}
+                    onChange={(e) => setParsedData({...parsedData, amount: parseFloat(e.target.value)})}
+                    className={`block w-full bg-transparent text-4xl font-extrabold pl-6 focus:outline-none focus:ring-0 border-b border-transparent hover:border-black/10 transition-colors ${
+                      parsedData.type === 'income' ? 'text-green-700' : 'text-red-700'
+                    }`}
+                  />
                 </div>
              </div>
 
-             <div>
-                <label className="text-xs text-gray-400 uppercase font-bold tracking-wider mb-1 block">描述</label>
-                <input 
-                  type="text" 
-                  value={parsedData.description}
-                  onChange={(e) => setParsedData({...parsedData, description: e.target.value})}
-                  className="w-full p-3 bg-gray-50 rounded-xl border border-gray-100 focus:ring-2 focus:ring-blue-500 outline-none"
-                />
+             {/* 详细信息表单 */}
+             <div className="space-y-4">
+               <div>
+                  <label className="text-xs text-gray-400 uppercase font-bold tracking-wider mb-1 block">商户 / 描述</label>
+                  <input 
+                    type="text" 
+                    value={parsedData.description}
+                    onChange={(e) => setParsedData({...parsedData, description: e.target.value})}
+                    className="w-full p-3 bg-gray-50 rounded-xl border border-gray-100 focus:ring-2 focus:ring-blue-500 outline-none font-medium text-gray-800"
+                  />
+               </div>
+
+               <div>
+                  <label className="text-xs text-gray-400 uppercase font-bold tracking-wider mb-2 block">分类</label>
+                  <div className="flex flex-wrap gap-2 max-h-32 overflow-y-auto no-scrollbar">
+                    {CATEGORIES.map(cat => (
+                      <button
+                        key={cat}
+                        onClick={() => setParsedData({...parsedData, category: cat})}
+                        className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+                          parsedData.category === cat 
+                            ? 'bg-blue-600 text-white shadow-md shadow-blue-200' 
+                            : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                        }`}
+                      >
+                        {cat}
+                      </button>
+                    ))}
+                  </div>
+               </div>
              </div>
 
-             <div>
-                <label className="text-xs text-gray-400 uppercase font-bold tracking-wider mb-1 block">分类</label>
-                <div className="flex flex-wrap gap-2">
-                  {CATEGORIES.map(cat => (
-                    <button
-                      key={cat}
-                      onClick={() => setParsedData({...parsedData, category: cat})}
-                      className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-                        parsedData.category === cat 
-                          ? 'bg-blue-600 text-white shadow-md shadow-blue-200' 
-                          : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                      }`}
-                    >
-                      {cat}
-                    </button>
-                  ))}
-                </div>
-             </div>
-
-             <div className="flex gap-3 mt-6">
-               <Button variant="secondary" onClick={() => setParsedData(null)} className="flex-1">返回</Button>
-               <Button onClick={handleConfirm} className="flex-1">
-                 <Check className="w-5 h-5 mr-2" /> 保存
+             <div className="flex gap-3 pt-2">
+               <Button variant="secondary" onClick={() => setParsedData(null)} className="flex-1">重试</Button>
+               <Button onClick={handleConfirm} className="flex-1 py-4 text-lg">
+                 <Check className="w-5 h-5 mr-2" /> 确认记账
                </Button>
              </div>
           </div>
