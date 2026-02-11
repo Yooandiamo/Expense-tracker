@@ -27,7 +27,7 @@ export const ShortcutGuide: React.FC<Props> = ({ onClose }) => {
           </div>
           <div>
             <h2 className="font-bold text-xl text-gray-900">设置屏幕识图记账</h2>
-            <p className="text-xs text-gray-500">截屏 -> 识别 -> 记账</p>
+            <p className="text-xs text-gray-500">截屏 → 识别 → 记账</p>
           </div>
         </div>
 
