@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { parseTransactionWithAI } from '../services/geminiService';
 import { ParsedTransactionData, CATEGORIES } from '../types';
 import { Button } from './Button';
-import { Sparkles, X, Check, Mic, ScanText, ArrowDownCircle, ArrowUpCircle, Key } from 'lucide-react';
+import { Sparkles, X, Check, Mic, ScanText, ArrowDownCircle, ArrowUpCircle } from 'lucide-react';
 
 interface Props {
   onAdd: (data: ParsedTransactionData) => void;
@@ -16,63 +16,25 @@ export const SmartEntry: React.FC<Props> = ({ onAdd, onClose, initialText = '' }
   const [parsedData, setParsedData] = useState<ParsedTransactionData | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  // API Key 逻辑
-  const envApiKey = import.meta.env.VITE_API_KEY;
-  
-  // 调试日志：帮助用户确认 Key 是否注入成功
   useEffect(() => {
-    if (envApiKey) {
-      console.log("DeepSeek Config: 环境变量 VITE_API_KEY 已加载 (前4位):", envApiKey.substring(0, 4) + "****");
-    } else {
-      console.log("DeepSeek Config: 未检测到环境变量 VITE_API_KEY。请检查 Vercel 设置中变量名是否以 'VITE_' 开头并已重新部署。");
-    }
-  }, [envApiKey]);
-
-  const [manualApiKey, setManualApiKey] = useState(() => {
-    return localStorage.getItem('deepseek_api_key') || '';
-  });
-  
-  // 只有当没有环境变量，且没有手动保存过 Key 时，才默认显示输入框
-  const [showKeyInput, setShowKeyInput] = useState(!envApiKey && !manualApiKey);
-
-  useEffect(() => {
-    // 如果有初始文本且已有 Key (无论是环境变量还是手填的)，自动开始
-    if (initialText && (envApiKey || manualApiKey)) {
+    // 如果有初始文本，自动开始
+    if (initialText) {
       handleParse();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const handleSaveKey = (key: string) => {
-    setManualApiKey(key);
-    localStorage.setItem('deepseek_api_key', key);
-  };
-
   const handleParse = async () => {
     if (!input.trim()) return;
     
-    // 检查 Key: 优先用手动输入的（为了允许用户在环境变量失效时覆盖），其次用环境变量
-    const effectiveKey = manualApiKey || envApiKey;
-    
-    if (!effectiveKey) {
-      setError("未检测到 API Key。请在下方输入，或检查 Vercel 环境变量设置。");
-      setShowKeyInput(true);
-      return;
-    }
-
     setIsProcessing(true);
     setError(null);
     try {
-      const result = await parseTransactionWithAI(input, effectiveKey);
+      const result = await parseTransactionWithAI(input);
       setParsedData(result);
     } catch (err: any) {
       setError(err.message || "无法识别内容。请确保截图包含清晰的金额和商户信息。");
       console.error(err);
-      
-      // 如果是 Key 错误 (401)，强制显示输入框让用户修正
-      if (err.message && (err.message.includes("API Key") || err.message.includes("401"))) {
-        setShowKeyInput(true);
-      }
     } finally {
       setIsProcessing(false);
     }
@@ -101,34 +63,6 @@ export const SmartEntry: React.FC<Props> = ({ onAdd, onClose, initialText = '' }
           </button>
         </div>
 
-        {/* API Key 设置区域 */}
-        {/* 显示条件: (没有环境变量) 或者 (用户正在手动输入/出错了) */}
-        {(!envApiKey || showKeyInput) && !parsedData && (
-          <div className="mb-6 p-4 bg-yellow-50 rounded-2xl border border-yellow-100 animate-fade-in">
-            <div className="flex items-center gap-2 mb-2 text-yellow-800 font-bold text-sm">
-              <Key className="w-4 h-4" />
-              {envApiKey ? "更换 API Key" : "配置 DeepSeek API Key"}
-            </div>
-            
-            {!envApiKey && (
-               <p className="text-[10px] text-yellow-600 mb-2 leading-relaxed">
-                 提示: 在 Vercel 环境变量中设置 <code>VITE_API_KEY</code> 可免去手动输入。
-               </p>
-            )}
-
-            <input
-              type="password"
-              value={manualApiKey}
-              onChange={(e) => handleSaveKey(e.target.value)}
-              placeholder="sk-..."
-              className="w-full p-2 border border-yellow-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-yellow-400 mb-2"
-            />
-            <p className="text-[10px] text-yellow-600">
-              Key 将安全存储在您的本地浏览器中。
-            </p>
-          </div>
-        )}
-
         {!parsedData ? (
           <>
             <div className="relative mb-6">
@@ -154,16 +88,6 @@ export const SmartEntry: React.FC<Props> = ({ onAdd, onClose, initialText = '' }
             >
               {initialText ? '正在分析屏幕...' : '开始分析'}
             </Button>
-            
-            {/* 如果有环境变量，但也想让用户能手动修改(万一key过期)，提供一个小按钮 */}
-            {envApiKey && !showKeyInput && (
-              <button 
-                onClick={() => setShowKeyInput(true)}
-                className="w-full mt-4 text-xs text-gray-300 hover:text-gray-500 underline transition-colors"
-              >
-                Key 失效？手动输入
-              </button>
-            )}
           </>
         ) : (
           <div className="space-y-5">

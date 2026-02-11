@@ -1,9 +1,2 @@
-/// <reference types="vite/client" />
-
-interface ImportMetaEnv {
-  readonly VITE_API_KEY: string;
-}
-
-interface ImportMeta {
-  readonly env: ImportMetaEnv;
-}
+// types for vite are no longer needed as we use process.env.API_KEY
+export {};
