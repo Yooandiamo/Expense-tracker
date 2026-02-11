@@ -2,10 +2,14 @@ import { ParsedTransactionData, CATEGORIES } from "../types";
 
 export const parseTransactionWithAI = async (text: string, manualApiKey?: string): Promise<ParsedTransactionData> => {
   // 优先使用传入的 key，其次使用环境变量
-  const apiKey = manualApiKey || import.meta.env.VITE_API_KEY;
+  let apiKey = manualApiKey || import.meta.env.VITE_API_KEY;
+  
+  if (apiKey) {
+    apiKey = apiKey.trim(); // 关键：去除可能的空格
+  }
   
   if (!apiKey) {
-    throw new Error("未配置 API Key。请在 .env 文件中设置 VITE_API_KEY，或在设置界面手动输入。");
+    throw new Error("未配置 API Key。请在设置界面手动输入，或检查 Vercel 环境变量 VITE_API_KEY。");
   }
 
   const now = new Date();
@@ -69,7 +73,7 @@ export const parseTransactionWithAI = async (text: string, manualApiKey?: string
       const errorText = await response.text();
       // 检查是否是认证错误
       if (response.status === 401) {
-        throw new Error("API Key 无效，请检查您的 Key 是否正确。");
+        throw new Error("API Key 无效 (401)。请检查 Key 是否正确，或额度是否充足。");
       }
       throw new Error(`API 请求失败 (${response.status})`);
     }
