@@ -25,14 +25,19 @@ const App: React.FC = () => {
 
   // Handle URL Params for iOS Shortcuts
   useEffect(() => {
-    // Check for query params ?text=... or ?input=...
+    // Check for query params
     const params = new URLSearchParams(window.location.search);
     const text = params.get('text') || params.get('input') || params.get('q');
+    const action = params.get('action'); // Support ?action=create
     
     if (text) {
       setInitialSmartText(text);
       setShowSmartEntry(true);
-      // Clean URL so refresh doesn't re-trigger
+      // Clean URL
+      window.history.replaceState({}, document.title, window.location.pathname);
+    } else if (action === 'create' || action === 'add') {
+      // Auto open for clipboard paste flow
+      setShowSmartEntry(true);
       window.history.replaceState({}, document.title, window.location.pathname);
     }
   }, []);

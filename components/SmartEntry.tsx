@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { parseTransactionWithAI } from '../services/geminiService';
 import { ParsedTransactionData, CATEGORIES } from '../types';
 import { Button } from './Button';
-import { Sparkles, X, Check, Mic, ScanText, ArrowDownCircle, ArrowUpCircle } from 'lucide-react';
+import { Sparkles, X, Check, ClipboardPaste, ScanText, ArrowDownCircle, ArrowUpCircle } from 'lucide-react';
 
 interface Props {
   onAdd: (data: ParsedTransactionData) => void;
@@ -17,26 +17,38 @@ export const SmartEntry: React.FC<Props> = ({ onAdd, onClose, initialText = '' }
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    // 如果有初始文本，自动开始
     if (initialText) {
-      handleParse();
+      handleParse(initialText);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const handleParse = async () => {
-    if (!input.trim()) return;
+  const handleParse = async (textToParse?: string) => {
+    const text = textToParse || input;
+    if (!text.trim()) return;
     
     setIsProcessing(true);
     setError(null);
     try {
-      const result = await parseTransactionWithAI(input);
+      const result = await parseTransactionWithAI(text);
       setParsedData(result);
     } catch (err: any) {
       setError(err.message || "无法识别内容。");
       console.error(err);
     } finally {
       setIsProcessing(false);
+    }
+  };
+
+  const handlePaste = async () => {
+    try {
+      const text = await navigator.clipboard.readText();
+      setInput(text);
+      // Optional: Auto-parse immediately after paste? Let's let user click to be safe.
+      // But clearing error is good.
+      setError(null);
+    } catch (err) {
+      setError("无法访问剪贴板，请手动粘贴或在设置中允许。");
     }
   };
 
@@ -65,29 +77,39 @@ export const SmartEntry: React.FC<Props> = ({ onAdd, onClose, initialText = '' }
 
         {!parsedData ? (
           <>
-            <div className="relative mb-6">
+            <div className="relative mb-4">
               <textarea
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
-                placeholder="正在等待快捷指令输入，或在此粘贴文字..."
-                className="w-full p-4 bg-gray-50 rounded-2xl border-none focus:ring-2 focus:ring-blue-500 text-lg resize-none h-32"
+                placeholder="在此粘贴识别出的文字..."
+                className="w-full p-4 bg-gray-50 rounded-2xl border-none focus:ring-2 focus:ring-blue-500 text-sm resize-none h-40 font-mono text-gray-600"
                 autoFocus
               />
-              <div className="absolute bottom-3 right-3 text-gray-400">
-                {initialText ? <ScanText className="w-5 h-5 animate-pulse text-blue-500" /> : <Mic className="w-5 h-5" />}
+              <div className="absolute bottom-3 right-3 flex gap-2">
+                 <button 
+                   onClick={handlePaste}
+                   className="bg-white shadow-sm border border-gray-200 text-gray-600 px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1 hover:bg-gray-50 active:scale-95 transition-all"
+                   title="从剪贴板粘贴"
+                 >
+                   <ClipboardPaste className="w-4 h-4" /> 粘贴
+                 </button>
               </div>
             </div>
 
             {error && <p className="text-red-500 mb-4 text-xs bg-red-50 p-3 rounded-lg border border-red-100">{error}</p>}
 
             <Button 
-              onClick={handleParse} 
+              onClick={() => handleParse()} 
               isLoading={isProcessing} 
               className="w-full"
               disabled={!input.trim()}
             >
-              {initialText ? '正在分析屏幕...' : '开始分析'}
+              {initialText ? '正在分析...' : '开始分析'}
             </Button>
+            
+            <p className="text-center text-xs text-gray-400 mt-4">
+               推荐使用“提取文本”并“拷贝至剪贴板”的快捷指令，避免文字过长被截断。
+            </p>
           </>
         ) : (
           <div className="space-y-5">
