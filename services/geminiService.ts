@@ -11,6 +11,7 @@ export const parseTransactionWithAI = async (text: string): Promise<ParsedTransa
   // 【步骤1】正则表达式暴力提取日期 (作为 AI 的强力辅助/修正)
   // 解决 AI 偶尔犯傻或忽略 OCR 中日期的 bug
   // 匹配格式: 2026-02-11 20:34:31, 2026/02/11 20:34, 2026年2月11日...
+  // 优化：允许日期和时间中间有多个空格 ([\sT]+)
   const dateRegex = /(\d{4})[-年/.](\d{1,2})[-月/.](\d{1,2})[\sT]+(\d{1,2})[:：](\d{1,2})(:(\d{1,2}))?/;
   const dateMatch = text.match(dateRegex);
   let regexDate: string | null = null;
@@ -28,7 +29,7 @@ export const parseTransactionWithAI = async (text: string): Promise<ParsedTransa
           );
           if (!isNaN(date.getTime())) {
               regexDate = date.toISOString();
-              console.log("Regex extracted date:", regexDate);
+              console.log("Regex extracted date (UTC):", regexDate);
           }
       } catch (e) {
           console.warn("Regex date parse failed", e);
@@ -44,7 +45,9 @@ export const parseTransactionWithAI = async (text: string): Promise<ParsedTransa
     规则：
     1. **金额**: 找最大的数字。优先找带"-"号的数字(如 -9.70)，取绝对值。不要取"订单金额"的原价。
     2. **类型**: 支出(expense)或收入(income)。
-    3. **分类**: 选一个: [${CATEGORIES.join(', ')}].
+    3. **分类**: 选一个: [${CATEGORIES.join(', ')}]. 
+       - 遇到 "蚂蚁财富"、"基金"、"证券"、"股票" -> 归类为 "理财"。
+       - 遇到 "魏家凉皮"、"麦当劳" -> 归类为 "餐饮"。
     4. **商户**: 第一行通常是商户名。
     5. **时间**: 必须提取。如果找不到，才用当前时间。
 
@@ -89,18 +92,13 @@ export const parseTransactionWithAI = async (text: string): Promise<ParsedTransa
     const parsed = JSON.parse(content);
 
     // 【步骤4】日期修正策略
-    // 如果正则提取到了有效日期，且 AI 提取的日期是当前时间(或者 AI 没提取到)，强制使用正则的日期。
-    // 这解决了 OCR 文本太长被截断导致 AI 看不到底部日期的问题(如果正则能扫到的话)，或者 AI 偷懒的问题。
     if (regexDate) {
-        // 如果 AI 返回的日期是今天(意味着它可能用了 fallback)，或者 AI 根本没返回日期
-        // 直接信任正则，因为 OCR 里的日期通常是真理
+        // 如果正则提取到了日期，优先使用正则的结果（因为正则解析的是本地时间转ISO，准确度高）
         parsed.date = regexDate;
     } else {
-        // 如果正则也没提取到，确保 AI 返回了有效日期
         if (!parsed.date || isNaN(new Date(parsed.date).getTime())) {
             parsed.date = new Date().toISOString();
         } else {
-            // 规范化 AI 返回的日期
             parsed.date = new Date(parsed.date).toISOString();
         }
     }

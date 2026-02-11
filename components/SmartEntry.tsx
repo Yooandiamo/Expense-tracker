@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { parseTransactionWithAI } from '../services/geminiService';
 import { ParsedTransactionData, CATEGORIES } from '../types';
 import { Button } from './Button';
-import { Sparkles, X, Check, ClipboardPaste, ScanText, ArrowDownCircle, ArrowUpCircle } from 'lucide-react';
+import { Sparkles, X, Check, ClipboardPaste, ArrowDownCircle, ArrowUpCircle } from 'lucide-react';
 
 interface Props {
   onAdd: (data: ParsedTransactionData) => void;
@@ -44,8 +44,6 @@ export const SmartEntry: React.FC<Props> = ({ onAdd, onClose, initialText = '' }
     try {
       const text = await navigator.clipboard.readText();
       setInput(text);
-      // Optional: Auto-parse immediately after paste? Let's let user click to be safe.
-      // But clearing error is good.
       setError(null);
     } catch (err) {
       setError("无法访问剪贴板，请手动粘贴或在设置中允许。");
@@ -56,6 +54,21 @@ export const SmartEntry: React.FC<Props> = ({ onAdd, onClose, initialText = '' }
     if (parsedData) {
       onAdd(parsedData);
       onClose();
+    }
+  };
+
+  // 辅助函数：将 ISO 时间 (UTC) 转换为本地 datetime-local 输入框需要的格式 (YYYY-MM-DDTHH:mm)
+  // 解决 10:00 变成 02:00 的时区显示 bug
+  const toLocalISOString = (isoString: string) => {
+    if (!isoString) return '';
+    try {
+      const date = new Date(isoString);
+      // 利用时区偏移量调整时间
+      const offset = date.getTimezoneOffset() * 60000;
+      const localDate = new Date(date.getTime() - offset);
+      return localDate.toISOString().slice(0, 16);
+    } catch (e) {
+      return '';
     }
   };
 
@@ -138,11 +151,16 @@ export const SmartEntry: React.FC<Props> = ({ onAdd, onClose, initialText = '' }
                      </button>
                   </div>
                   
-                  {/* 日期选择 */}
+                  {/* 日期选择 (修复时区显示) */}
                   <input 
                     type="datetime-local" 
-                    value={parsedData.date.substring(0, 16)}
-                    onChange={(e) => setParsedData({...parsedData, date: new Date(e.target.value).toISOString()})}
+                    value={toLocalISOString(parsedData.date)}
+                    onChange={(e) => {
+                      const localVal = e.target.value;
+                      if (localVal) {
+                        setParsedData({...parsedData, date: new Date(localVal).toISOString()});
+                      }
+                    }}
                     className="bg-transparent text-xs font-medium text-gray-500 text-right focus:outline-none"
                   />
                 </div>
