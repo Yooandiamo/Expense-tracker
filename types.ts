@@ -1,7 +1,7 @@
 export interface Transaction {
   id: string;
   amount: number;
-  type: 'expense' | 'income'; // 新增：支出或收入
+  type: 'expense' | 'income';
   category: string;
   description: string;
   date: string; // ISO string
@@ -24,13 +24,19 @@ export enum ViewState {
 
 export const CATEGORIES = [
   '餐饮',
-  '交通',
   '购物',
+  '日用',
+  '交通',
+  '水果',
+  '运动',
   '娱乐',
-  '医疗',
-  '生活',
+  '通讯',
+  '服饰',
+  '美容',
+  '酒店',
+  '数码',
   '工资',
+  '兼职',
   '理财',
-  '转账',
   '其他'
 ];
