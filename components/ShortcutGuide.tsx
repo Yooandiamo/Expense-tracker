@@ -1,19 +1,17 @@
 import React from 'react';
-import { X, Copy, Smartphone, Zap, ArrowRight, Mic, Globe, MousePointerClick } from 'lucide-react';
+import { X, Copy, Smartphone, Zap, ArrowRight, ScanText, Globe, Image, Layers } from 'lucide-react';
 
 interface Props {
   onClose: () => void;
 }
 
 export const ShortcutGuide: React.FC<Props> = ({ onClose }) => {
-  // 获取当前部署的 URL 基础路径，不带参数
   const baseUrl = window.location.origin + window.location.pathname;
-  // 构造基础查询参数
   const urlPrefix = `${baseUrl}?text=`;
 
   const copyToClipboard = () => {
     navigator.clipboard.writeText(urlPrefix);
-    alert('链接前缀已复制！请粘贴到快捷指令的 URL 栏中');
+    alert('链接前缀已复制！');
   };
 
   return (
@@ -25,11 +23,11 @@ export const ShortcutGuide: React.FC<Props> = ({ onClose }) => {
 
         <div className="flex items-center gap-3 mb-6 sticky top-0 bg-white/95 backdrop-blur py-2 border-b border-gray-100 z-0">
           <div className="bg-blue-100 p-3 rounded-full">
-             <Zap className="w-6 h-6 text-blue-600 fill-current" />
+             <ScanText className="w-6 h-6 text-blue-600" />
           </div>
           <div>
-            <h2 className="font-bold text-xl text-gray-900">敲一敲记账设置</h2>
-            <p className="text-xs text-gray-500">只需 3 步，解放双手</p>
+            <h2 className="font-bold text-xl text-gray-900">设置屏幕识图记账</h2>
+            <p className="text-xs text-gray-500">截屏 -> 识别 -> 记账</p>
           </div>
         </div>
 
@@ -38,11 +36,11 @@ export const ShortcutGuide: React.FC<Props> = ({ onClose }) => {
           <div className="relative pl-8 border-l-2 border-blue-100">
             <div className="absolute -left-[11px] top-0 bg-blue-600 text-white w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold border-2 border-white shadow-sm">1</div>
             <h3 className="font-bold text-gray-800 mb-2 flex items-center gap-2">
-              <Mic className="w-4 h-4 text-blue-500" />
-              添加 "听写文本"
+              <Image className="w-4 h-4 text-blue-500" />
+              第一步：截取屏幕
             </h3>
             <p className="text-sm text-gray-600 bg-gray-50 p-3 rounded-lg">
-              打开快捷指令 App，新建指令，搜索添加 <strong>"听写文本"</strong> (Dictate Text) 操作。
+              新建快捷指令，搜索并添加 <strong>"截取屏幕"</strong> (Take Screenshot)。
             </p>
           </div>
 
@@ -50,14 +48,26 @@ export const ShortcutGuide: React.FC<Props> = ({ onClose }) => {
           <div className="relative pl-8 border-l-2 border-blue-100">
             <div className="absolute -left-[11px] top-0 bg-blue-600 text-white w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold border-2 border-white shadow-sm">2</div>
             <h3 className="font-bold text-gray-800 mb-2 flex items-center gap-2">
+              <ScanText className="w-4 h-4 text-blue-500" />
+              第二步：提取文本 (OCR)
+            </h3>
+            <p className="text-sm text-gray-600 bg-gray-50 p-3 rounded-lg">
+              搜索并添加 <strong>"从图像中提取文本"</strong> (Extract Text from Image)。
+              <br/>
+              <span className="text-xs text-blue-500 block mt-1">确保它的输入是上一步的 "屏幕快照"。</span>
+            </p>
+          </div>
+
+          {/* Step 3 */}
+          <div className="relative pl-8 border-l-2 border-blue-100">
+            <div className="absolute -left-[11px] top-0 bg-blue-600 text-white w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold border-2 border-white shadow-sm">3</div>
+            <h3 className="font-bold text-gray-800 mb-2 flex items-center gap-2">
               <Globe className="w-4 h-4 text-blue-500" />
-              添加 "打开 URL"
+              第三步：打开 URL
             </h3>
             <div className="bg-gray-50 p-3 rounded-lg text-sm space-y-3">
-              <p className="text-gray-600">搜索添加 <strong>"打开 URL"</strong> (Open URL) 操作。</p>
-              
               <div className="bg-white border border-blue-200 rounded-lg p-3 shadow-sm">
-                <p className="text-xs text-blue-500 mb-1 font-bold">先复制这个链接前缀：</p>
+                <p className="text-xs text-blue-500 mb-1 font-bold">复制链接前缀：</p>
                 <div className="flex items-center gap-2">
                   <code className="text-xs bg-gray-100 px-2 py-1 rounded flex-1 truncate text-gray-700 font-mono">
                     {urlPrefix}
@@ -69,28 +79,25 @@ export const ShortcutGuide: React.FC<Props> = ({ onClose }) => {
               </div>
 
               <p className="text-gray-600">
-                1. 将上方链接粘贴到 URL 框中。<br/>
-                2. 光标放在 <code>text=</code> 后面。<br/>
-                3. 在变量栏选择 <strong>"听写文本"</strong> 变量。
+                1. 添加 <strong>"打开 URL"</strong>。<br/>
+                2. 粘贴链接前缀。<br/>
+                3. 在等号后添加变量 <strong>"从图像中提取的文本"</strong>。
               </p>
-              
-              <div className="text-xs text-gray-400 bg-gray-100 p-2 rounded border border-dashed border-gray-300">
-                最终样子: <span className="text-gray-600">{baseUrl}?text=</span><span className="bg-blue-200 text-blue-800 px-1 rounded mx-1">听写文本</span>
-              </div>
             </div>
           </div>
 
-          {/* Step 3 */}
+          {/* Step 4 */}
           <div className="relative pl-8 border-l-2 border-transparent">
-            <div className="absolute -left-[11px] top-0 bg-blue-600 text-white w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold border-2 border-white shadow-sm">3</div>
+            <div className="absolute -left-[11px] top-0 bg-blue-600 text-white w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold border-2 border-white shadow-sm">4</div>
             <h3 className="font-bold text-gray-800 mb-2 flex items-center gap-2">
-              <Smartphone className="w-4 h-4 text-blue-500" />
-              设置 "轻点背面"
+              <Layers className="w-4 h-4 text-blue-500" />
+              绑定敲一敲
             </h3>
             <div className="bg-blue-50 p-4 rounded-xl">
-              <p className="text-sm text-blue-800 leading-relaxed">
-                前往 <strong>设置 &gt; 辅助功能 &gt; 触控 &gt; 轻点背面</strong>。<br/>
-                选择 "轻点两下"，然后勾选你刚才创建的快捷指令。
+              <p className="text-sm text-blue-800">
+                最后在 <strong>设置 &gt; 辅助功能 &gt; 触控 &gt; 轻点背面</strong> 中绑定此指令。
+                <br/><br/>
+                以后停留在支付成功页面时，敲两下即可！
               </p>
             </div>
           </div>

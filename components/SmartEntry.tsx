@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { parseTransactionWithAI } from '../services/geminiService';
 import { ParsedTransactionData, CATEGORIES } from '../types';
 import { Button } from './Button';
-import { Sparkles, X, Check, Mic } from 'lucide-react';
+import { Sparkles, X, Check, Mic, ScanText } from 'lucide-react';
 
 interface Props {
   onAdd: (data: ParsedTransactionData) => void;
@@ -32,7 +32,7 @@ export const SmartEntry: React.FC<Props> = ({ onAdd, onClose, initialText = '' }
       const result = await parseTransactionWithAI(input);
       setParsedData(result);
     } catch (err: any) {
-      setError(err.message || "无法理解该内容。请尝试 '午餐 15 元' 这样的格式");
+      setError(err.message || "无法识别内容。请确保截图包含清晰的金额和商户信息。");
       console.error(err);
     } finally {
       setIsProcessing(false);
@@ -66,12 +66,12 @@ export const SmartEntry: React.FC<Props> = ({ onAdd, onClose, initialText = '' }
               <textarea
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
-                placeholder="例如：'刚刚打车去市区花了 25 元'"
+                placeholder="在此粘贴文字，或者通过快捷指令传入屏幕截图文字..."
                 className="w-full p-4 bg-gray-50 rounded-2xl border-none focus:ring-2 focus:ring-blue-500 text-lg resize-none h-32"
                 autoFocus
               />
               <div className="absolute bottom-3 right-3 text-gray-400">
-                <Mic className="w-5 h-5" />
+                {initialText ? <ScanText className="w-5 h-5 animate-pulse text-blue-500" /> : <Mic className="w-5 h-5" />}
               </div>
             </div>
 
@@ -83,7 +83,7 @@ export const SmartEntry: React.FC<Props> = ({ onAdd, onClose, initialText = '' }
               className="w-full"
               disabled={!input.trim()}
             >
-              开始分析
+              {initialText ? '正在分析屏幕内容...' : '开始分析'}
             </Button>
           </>
         ) : (
