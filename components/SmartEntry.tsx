@@ -33,7 +33,7 @@ export const SmartEntry: React.FC<Props> = ({ onAdd, onClose, initialText = '' }
       const result = await parseTransactionWithAI(input);
       setParsedData(result);
     } catch (err: any) {
-      setError(err.message || "无法识别内容。请确保截图包含清晰的金额和商户信息。");
+      setError(err.message || "无法识别内容。");
       console.error(err);
     } finally {
       setIsProcessing(false);
