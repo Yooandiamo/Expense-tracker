@@ -2,12 +2,10 @@ import { GoogleGenAI, Type } from "@google/genai";
 import { ParsedTransactionData, CATEGORIES } from "../types";
 
 export const parseTransactionWithAI = async (text: string): Promise<ParsedTransactionData> => {
-  // Initialize the Gemini API client
-  // The API key is obtained from process.env.API_KEY as per guidelines
+  // 适配 Google GenAI SDK，使用 process.env.API_KEY
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
   const now = new Date();
-  
   const systemInstruction = `
     你是一个专业的记账助手。
     当前时间: ${now.toISOString()} (${now.toLocaleString('zh-CN')})。
@@ -25,8 +23,7 @@ export const parseTransactionWithAI = async (text: string): Promise<ParsedTransa
       contents: text,
       config: {
         systemInstruction: systemInstruction,
-        responseMimeType: "application/json",
-        temperature: 0.1,
+        responseMimeType: 'application/json',
         responseSchema: {
           type: Type.OBJECT,
           properties: {
@@ -35,18 +32,15 @@ export const parseTransactionWithAI = async (text: string): Promise<ParsedTransa
             description: { type: Type.STRING },
             date: { type: Type.STRING },
           },
-          required: ["amount", "category", "description", "date"],
+          required: ['amount', 'category', 'description', 'date'],
         },
       },
     });
 
-    const jsonText = response.text;
+    const jsonStr = response.text;
+    if (!jsonStr) throw new Error("AI 未返回有效内容");
 
-    if (!jsonText) {
-      throw new Error("AI 未返回有效内容");
-    }
-
-    return JSON.parse(jsonText) as ParsedTransactionData;
+    return JSON.parse(jsonStr) as ParsedTransactionData;
   } catch (e: any) {
     console.error("AI 解析错误", e);
     throw new Error(e.message || "AI 解析失败，请检查网络或 API Key");
