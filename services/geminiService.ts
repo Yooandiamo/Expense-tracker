@@ -1,7 +1,6 @@
 import { ParsedTransactionData, CATEGORIES } from "../types";
 
 export const parseTransactionWithAI = async (text: string): Promise<ParsedTransactionData> => {
-  // 通过 vite.config.ts define 注入的 API_KEY
   const apiKey = process.env.API_KEY;
   
   if (!apiKey) {
@@ -10,45 +9,47 @@ export const parseTransactionWithAI = async (text: string): Promise<ParsedTransa
 
   const now = new Date();
   
-  // DeepSeek 提示词 - 针对支付截图优化
+  // 核心优化：针对支付宝/微信 OCR 结果的特定提示词
   const systemInstruction = `
-    你是一个专业的账单识别助手。用户会传入一段来自手机屏幕截图的 OCR 文本（通常是支付宝、微信或银行APP的账单详情页）。
-    请分析文本，提取一笔交易的关键信息。
+    你是一个专门处理“支付宝/微信/银行APP”账单截图 OCR 文本的 AI 引擎。
+    用户的输入是一段混乱的 OCR 文本。你的任务是提取真实的交易详情。
 
-    当前参考时间: ${now.toISOString()} (${now.toLocaleString('zh-CN')})。
+    当前时间是: ${now.toISOString()}。
 
-    请严格按照以下逻辑提取字段 (JSON格式):
+    请严格遵守以下【提取规则】：
 
-    1. **amount (数字)**: 交易的实际变动金额。永远返回正数。
-       - **关键规则**: 详情页通常包含"订单金额"(原价)和"优惠金额"。请务必提取**实际支付**的金额。
-       - 常见布局中，顶部字号最大的数字通常是实付金额。
-       - 如果数字带有 "-" 号 (如 -9.70)，取绝对值 (9.70) 并标记为支出。
-       - 不要混淆"订单金额" (9.90) 和 "实付金额" (9.70)，选后者。
+    1. **金额 (amount)**:
+       - **核心逻辑**: 寻找页面上字号最大的数字，或者位于“交易成功/支付成功”附近的数字。
+       - **负号处理**: 如果看到类似 "-9.70" 或 "- 9.70" 的数字，这是【实付金额】。请取绝对值 (9.70)。
+       - **干扰项排除**: 如果文本中同时出现 "订单金额 9.90" 和 "-9.70"，**必须**取 "-9.70" (实付)。永远不要取“订单金额/原价”，除非没有其他数字。
+       - 必须返回正数数字 (Number类型)。
 
-    2. **type (字符串)**: 
-       - "income": 包含 "收到", "收款", "转入", "退款", "+"号。
-       - "expense": 包含 "付款", "支付", "消费", "支出", "-"号，或者是一个普通的支付完成页面。
+    2. **类型 (type)**:
+       - 如果金额带有 "-" 号，或者文本包含 "付款"、"支付"、"支出"，则是 "expense"。
+       - 如果金额带有 "+" 号，或者文本包含 "收款"、"收到"、"退款"、"入账"，则是 "income"。
+       - 默认为 "expense"。
 
-    3. **description (字符串)**: 交易对象、商户名称或商品说明。
-       - 优先提取商户名 (如 "魏家凉皮", "星巴克")。
-       - 如果是转账，提取 "转给xxx" 或 "xxx的转账"。
+    3. **日期 (date)**:
+       - **最高优先级**: 必须从文本中提取“支付时间”、“交易时间”、“创建时间”后的时间串。
+       - 格式通常为: "YYYY-MM-DD HH:mm:ss" 或 "YYYY年MM月DD日 HH:mm"。
+       - **如果OCR文本中包含了具体的日期时间（如 2026-02-11），绝对不要使用当前时间！**
+       - 请将提取到的时间转换为 ISO 格式字符串 (YYYY-MM-DDTHH:mm:ss.000Z)。
 
-    4. **category (字符串)**: 从以下列表中选择最匹配的一个: [${CATEGORIES.join(', ')}]. 
-       - 餐饮: 饭店、外卖、食品 (如 肯德基, 麦当劳, 凉皮, 烧烤)。
-       - 交通: 打车、地铁、加油 (如 滴滴, 中石化)。
-       - 购物: 超市、便利店、电商 (如 7-11, 淘宝, 京东)。
+    4. **描述 (description)**:
+       - 提取商户名称（通常在金额上方或第一行，如 "魏家凉皮"）。
+       - 或者是商品说明（如 "餐饮美食-订单"）。
 
-    5. **date (ISO字符串)**: 提取交易发生的具体日期和时间。
-       - **关键规则**: 必须精确匹配上下文中的 "支付时间", "交易时间", "创建时间" 等字段。
-       - OCR 可能会把时间识别成断行，请尝试组合 (如 "2026-02-11" 和 "20:34:31")。
-       - 格式要求: YYYY-MM-DDTHH:mm:ss.sssZ (例如: 2026-02-11T20:34:31.000Z)。
-       - 如果文本中包含了明确的日期时间，**绝对不要**使用当前时间。
+    5. **分类 (category)**:
+       - 从以下列表中选择: [${CATEGORIES.join(', ')}].
+       - 根据商户名自动推断 (例: 魏家凉皮->餐饮, 滴滴->交通, 超市->购物)。
 
-    示例输入:
-    "魏家凉皮 -9.70 交易成功 订单金额 9.90 支付时间 2026-02-11 20:34:31"
-    
-    示例输出 JSON:
-    {"amount": 9.70, "type": "expense", "category": "餐饮", "description": "魏家凉皮", "date": "2026-02-11T20:34:31.000Z"}
+    【示例 1 - 支付宝支出】
+    输入: "魏家凉皮(回龙观店) -9.70 交易成功 订单金额 9.90 优惠 -0.20 支付时间 2026-02-11 20:34:31"
+    输出: {"amount": 9.70, "type": "expense", "description": "魏家凉皮(回龙观店)", "category": "餐饮", "date": "2026-02-11T20:34:31.000Z"}
+
+    【示例 2 - 微信收入】
+    输入: "收到转账 +200.00 交易时间 2025-01-01 10:00:00 来自李四"
+    输出: {"amount": 200.00, "type": "income", "description": "李四转账", "category": "转账", "date": "2025-01-01T10:00:00.000Z"}
   `;
 
   try {
@@ -65,17 +66,14 @@ export const parseTransactionWithAI = async (text: string): Promise<ParsedTransa
           { role: 'user', content: text }
         ],
         response_format: { type: 'json_object' },
-        temperature: 0.1 // 降低温度，让提取更严谨
+        temperature: 0.1 // 极低温度，防止由于OCR乱码导致的幻觉
       })
     });
 
     if (!response.ok) {
-      if (response.status === 401) {
-        throw new Error("API Key 无效 (401)。请检查 Vercel 环境变量 API_KEY 是否正确。");
-      }
       const errText = await response.text();
       console.error("DeepSeek API Error:", errText);
-      throw new Error(`API 请求失败 (${response.status})`);
+      throw new Error(`识别请求失败 (${response.status})`);
     }
 
     const data = await response.json();
@@ -84,9 +82,24 @@ export const parseTransactionWithAI = async (text: string): Promise<ParsedTransa
     if (!content) throw new Error("AI 未返回内容");
 
     const cleanContent = content.replace(/```json\s*|\s*```/g, '').trim();
-    return JSON.parse(cleanContent) as ParsedTransactionData;
+    const parsed = JSON.parse(cleanContent);
+
+    // 二次校验日期格式，确保前端 <input type="datetime-local"> 能正确显示
+    // 如果 AI 返回了 ISO 字符串，直接使用；如果返回了无效日期，兜底为当前时间
+    if (parsed.date) {
+        const dateObj = new Date(parsed.date);
+        if (!isNaN(dateObj.getTime())) {
+            parsed.date = dateObj.toISOString();
+        } else {
+             parsed.date = new Date().toISOString();
+        }
+    } else {
+        parsed.date = new Date().toISOString();
+    }
+
+    return parsed as ParsedTransactionData;
   } catch (e: any) {
     console.error("AI 解析错误", e);
-    throw new Error(e.message || "无法识别截图内容，请确保截图包含金额和文字信息。");
+    throw new Error("无法从截图中提取有效账单信息，请确保包含金额和商户名。");
   }
 };
