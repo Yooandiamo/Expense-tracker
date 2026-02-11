@@ -1,11 +1,15 @@
+import { GoogleGenAI, Type } from "@google/genai";
 import { ParsedTransactionData, CATEGORIES } from "../types";
 
-// 使用 DeepSeek API
+// 使用 Google GenAI SDK
 export const parseTransactionWithAI = async (text: string): Promise<ParsedTransactionData> => {
+  // The API key must be obtained exclusively from the environment variable process.env.API_KEY
   const apiKey = process.env.API_KEY;
   if (!apiKey) {
-    throw new Error("API Key 未配置");
+    throw new Error("API Key 未配置。请在环境变量中添加 API_KEY");
   }
+
+  const ai = new GoogleGenAI({ apiKey });
 
   const now = new Date();
   const systemInstruction = `
@@ -18,36 +22,30 @@ export const parseTransactionWithAI = async (text: string): Promise<ParsedTransa
     3. 描述 (description): 简短的中文描述。
     4. 日期 (date): ISO 8601 格式字符串。如果用户说“刚刚”、“刚才”或未指定，使用当前时间。处理“昨天”、“上周五”等相对于当前时间的概念。
     
-    必须返回严格的 JSON 格式，不要使用 Markdown 代码块。
-    JSON 示例: {"amount": 10, "category": "餐饮", "description": "午饭", "date": "2023-10-01T12:00:00.000Z"}
+    必须返回严格的 JSON 格式。
   `;
 
   try {
-    const response = await fetch('https://api.deepseek.com/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${apiKey}`
-      },
-      body: JSON.stringify({
-        model: 'deepseek-chat',
-        messages: [
-          { role: 'system', content: systemInstruction },
-          { role: 'user', content: text }
-        ],
-        response_format: { type: 'json_object' },
-        temperature: 0.1
-      })
+    const response = await ai.models.generateContent({
+      model: 'gemini-3-flash-preview',
+      contents: text,
+      config: {
+        systemInstruction,
+        responseMimeType: 'application/json',
+        responseSchema: {
+          type: Type.OBJECT,
+          properties: {
+            amount: { type: Type.NUMBER },
+            category: { type: Type.STRING },
+            description: { type: Type.STRING },
+            date: { type: Type.STRING },
+          },
+          required: ['amount', 'category', 'description', 'date'],
+        },
+      }
     });
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`DeepSeek API Error: ${response.status} ${errorText}`);
-    }
-
-    const data = await response.json();
-    const jsonContent = data.choices[0]?.message?.content;
-
+    const jsonContent = response.text;
     if (!jsonContent) throw new Error("AI 未返回内容");
 
     return JSON.parse(jsonContent) as ParsedTransactionData;
