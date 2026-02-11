@@ -1,10 +1,11 @@
 import { ParsedTransactionData, CATEGORIES } from "../types";
 
-export const parseTransactionWithAI = async (text: string): Promise<ParsedTransactionData> => {
-  const apiKey = import.meta.env.VITE_API_KEY;
+export const parseTransactionWithAI = async (text: string, manualApiKey?: string): Promise<ParsedTransactionData> => {
+  // 优先使用传入的 key，其次使用环境变量
+  const apiKey = manualApiKey || import.meta.env.VITE_API_KEY;
   
   if (!apiKey) {
-    throw new Error("未配置 API Key。请在 .env 文件中设置 VITE_API_KEY=sk-xxxx");
+    throw new Error("未配置 API Key。请在 .env 文件中设置 VITE_API_KEY，或在设置界面手动输入。");
   }
 
   const now = new Date();
@@ -66,6 +67,10 @@ export const parseTransactionWithAI = async (text: string): Promise<ParsedTransa
 
     if (!response.ok) {
       const errorText = await response.text();
+      // 检查是否是认证错误
+      if (response.status === 401) {
+        throw new Error("API Key 无效，请检查您的 Key 是否正确。");
+      }
       throw new Error(`API 请求失败 (${response.status})`);
     }
 
@@ -78,6 +83,7 @@ export const parseTransactionWithAI = async (text: string): Promise<ParsedTransa
     return JSON.parse(cleanContent) as ParsedTransactionData;
   } catch (e: any) {
     console.error("AI 解析错误", e);
-    throw new Error("无法识别截图内容，请确保截图包含金额和文字信息。");
+    // 透传具体的错误信息
+    throw new Error(e.message || "无法识别截图内容，请确保截图包含金额和文字信息。");
   }
 };
