@@ -1,27 +1,54 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { parseTransactionWithAI } from '../services/geminiService';
 import { ParsedTransactionData, CATEGORIES } from '../types';
 import { Button } from './Button';
-import { Sparkles, X, Check, ClipboardPaste, ArrowDownCircle, ArrowUpCircle } from 'lucide-react';
+import { Sparkles, X, Check, ClipboardPaste, ArrowDownCircle, ArrowUpCircle, ScanText } from 'lucide-react';
 
 interface Props {
   onAdd: (data: ParsedTransactionData) => void;
   onClose: () => void;
   initialText?: string;
+  autoPaste?: boolean;
 }
 
-export const SmartEntry: React.FC<Props> = ({ onAdd, onClose, initialText = '' }) => {
+export const SmartEntry: React.FC<Props> = ({ onAdd, onClose, initialText = '', autoPaste = false }) => {
   const [input, setInput] = useState(initialText);
   const [isProcessing, setIsProcessing] = useState(false);
   const [parsedData, setParsedData] = useState<ParsedTransactionData | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [showAutoPasteOverlay, setShowAutoPasteOverlay] = useState(false);
 
   useEffect(() => {
+    // 如果有初始文本，直接开始
     if (initialText) {
       handleParse(initialText);
+      return;
+    }
+
+    // 如果设置了自动粘贴
+    if (autoPaste) {
+      attemptAutoPaste();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [initialText, autoPaste]);
+
+  const attemptAutoPaste = async () => {
+    try {
+      // 尝试直接读取 (Desktop Chrome 可能可以，iOS Safari 99% 会失败)
+      const text = await navigator.clipboard.readText();
+      if (text) {
+        setInput(text);
+        handleParse(text);
+      } else {
+        // 剪贴板为空，也显示覆盖层引导用户
+        setShowAutoPasteOverlay(true);
+      }
+    } catch (err) {
+      // 权限被拒绝 (iOS Safari)，显示 "点击任意位置" 覆盖层
+      console.log("Auto paste blocked by browser, showing manual trigger UI");
+      setShowAutoPasteOverlay(true);
+    }
+  };
 
   const handleParse = async (textToParse?: string) => {
     const text = textToParse || input;
@@ -29,6 +56,8 @@ export const SmartEntry: React.FC<Props> = ({ onAdd, onClose, initialText = '' }
     
     setIsProcessing(true);
     setError(null);
+    setShowAutoPasteOverlay(false); // 确保遮罩层关闭
+
     try {
       const result = await parseTransactionWithAI(text);
       setParsedData(result);
@@ -45,8 +74,13 @@ export const SmartEntry: React.FC<Props> = ({ onAdd, onClose, initialText = '' }
       const text = await navigator.clipboard.readText();
       setInput(text);
       setError(null);
+      // 粘贴后自动开始分析
+      if (text.trim()) {
+        handleParse(text);
+      }
     } catch (err) {
       setError("无法访问剪贴板，请手动粘贴或在设置中允许。");
+      setShowAutoPasteOverlay(false);
     }
   };
 
@@ -57,13 +91,10 @@ export const SmartEntry: React.FC<Props> = ({ onAdd, onClose, initialText = '' }
     }
   };
 
-  // 辅助函数：将 ISO 时间 (UTC) 转换为本地 datetime-local 输入框需要的格式 (YYYY-MM-DDTHH:mm)
-  // 解决 10:00 变成 02:00 的时区显示 bug
   const toLocalISOString = (isoString: string) => {
     if (!isoString) return '';
     try {
       const date = new Date(isoString);
-      // 利用时区偏移量调整时间
       const offset = date.getTimezoneOffset() * 60000;
       const localDate = new Date(date.getTime() - offset);
       return localDate.toISOString().slice(0, 16);
@@ -74,7 +105,7 @@ export const SmartEntry: React.FC<Props> = ({ onAdd, onClose, initialText = '' }
 
   return (
     <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center p-4 animate-fade-in">
-      <div className="bg-white w-full max-w-md rounded-3xl p-6 shadow-2xl animate-slide-up overflow-hidden max-h-[90vh] overflow-y-auto no-scrollbar">
+      <div className="bg-white w-full max-w-md rounded-3xl p-6 shadow-2xl animate-slide-up overflow-hidden max-h-[90vh] overflow-y-auto no-scrollbar relative">
         
         <div className="flex justify-between items-center mb-6">
           <div className="flex items-center gap-2 text-blue-600">
@@ -96,8 +127,10 @@ export const SmartEntry: React.FC<Props> = ({ onAdd, onClose, initialText = '' }
                 onChange={(e) => setInput(e.target.value)}
                 placeholder="在此粘贴识别出的文字..."
                 className="w-full p-4 bg-gray-50 rounded-2xl border-none focus:ring-2 focus:ring-blue-500 text-sm resize-none h-40 font-mono text-gray-600"
-                autoFocus
+                autoFocus={!showAutoPasteOverlay}
               />
+              
+              {/* 普通粘贴按钮 (右下角小按钮) */}
               <div className="absolute bottom-3 right-3 flex gap-2">
                  <button 
                    onClick={handlePaste}
@@ -107,6 +140,24 @@ export const SmartEntry: React.FC<Props> = ({ onAdd, onClose, initialText = '' }
                    <ClipboardPaste className="w-4 h-4" /> 粘贴
                  </button>
               </div>
+
+              {/* 
+                 iOS Safari 安全限制对策：
+                 如果自动粘贴失败（通常因为没有用户交互），显示这个覆盖层。
+                 用户点击这个巨大的按钮会被视为“用户交互”，从而允许 navigator.clipboard.readText() 执行。
+              */}
+              {showAutoPasteOverlay && (
+                <div 
+                  onClick={handlePaste}
+                  className="absolute inset-0 bg-blue-50/95 backdrop-blur-sm rounded-2xl flex flex-col items-center justify-center cursor-pointer border-2 border-blue-200 border-dashed animate-pulse"
+                >
+                  <div className="bg-blue-100 p-4 rounded-full mb-3 text-blue-600">
+                    <ScanText className="w-8 h-8" />
+                  </div>
+                  <p className="text-blue-700 font-bold text-lg">点击开始识别</p>
+                  <p className="text-blue-400 text-xs mt-1">检测到快捷指令跳转</p>
+                </div>
+              )}
             </div>
 
             {error && <p className="text-red-500 mb-4 text-xs bg-red-50 p-3 rounded-lg border border-red-100">{error}</p>}
@@ -119,10 +170,6 @@ export const SmartEntry: React.FC<Props> = ({ onAdd, onClose, initialText = '' }
             >
               {initialText ? '正在分析...' : '开始分析'}
             </Button>
-            
-            <p className="text-center text-xs text-gray-400 mt-4">
-               推荐使用“提取文本”并“拷贝至剪贴板”的快捷指令，避免文字过长被截断。
-            </p>
           </>
         ) : (
           <div className="space-y-5">
@@ -131,7 +178,6 @@ export const SmartEntry: React.FC<Props> = ({ onAdd, onClose, initialText = '' }
                parsedData.type === 'income' ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'
              }`}>
                 <div className="flex justify-between items-center mb-4">
-                  {/* 类型切换开关 */}
                   <div className="flex bg-white/60 p-1 rounded-lg">
                      <button
                        onClick={() => setParsedData({...parsedData, type: 'expense'})}
@@ -151,7 +197,6 @@ export const SmartEntry: React.FC<Props> = ({ onAdd, onClose, initialText = '' }
                      </button>
                   </div>
                   
-                  {/* 日期选择 (修复时区显示) */}
                   <input 
                     type="datetime-local" 
                     value={toLocalISOString(parsedData.date)}
@@ -178,7 +223,6 @@ export const SmartEntry: React.FC<Props> = ({ onAdd, onClose, initialText = '' }
                 </div>
              </div>
 
-             {/* 详细信息表单 */}
              <div className="space-y-4">
                <div>
                   <label className="text-xs text-gray-400 uppercase font-bold tracking-wider mb-1 block">商户 / 描述</label>

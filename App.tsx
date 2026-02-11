@@ -17,6 +17,7 @@ const App: React.FC = () => {
   const [showSmartEntry, setShowSmartEntry] = useState(false);
   const [showShortcutGuide, setShowShortcutGuide] = useState(false);
   const [initialSmartText, setInitialSmartText] = useState('');
+  const [shouldAutoPaste, setShouldAutoPaste] = useState(false);
 
   // Save to local storage
   useEffect(() => {
@@ -38,6 +39,7 @@ const App: React.FC = () => {
     } else if (action === 'create' || action === 'add') {
       // Auto open for clipboard paste flow
       setShowSmartEntry(true);
+      setShouldAutoPaste(true); // Tell SmartEntry to try auto-pasting
       window.history.replaceState({}, document.title, window.location.pathname);
     }
   }, []);
@@ -51,6 +53,7 @@ const App: React.FC = () => {
     setTransactions(prev => [newTransaction, ...prev]);
     setShowSmartEntry(false);
     setInitialSmartText('');
+    setShouldAutoPaste(false);
   };
 
   const handleDelete = (id: string) => {
@@ -123,7 +126,10 @@ const App: React.FC = () => {
                 <p className="text-gray-400 mb-4">暂无账单</p>
                 <div className="flex flex-col gap-3 items-center">
                   <button 
-                    onClick={() => setShowSmartEntry(true)}
+                    onClick={() => {
+                      setShouldAutoPaste(false);
+                      setShowSmartEntry(true);
+                    }}
                     className="text-blue-600 font-medium bg-blue-50 px-6 py-2 rounded-full"
                   >
                     点击 + 开始记账
@@ -161,6 +167,7 @@ const App: React.FC = () => {
          <button 
            onClick={() => {
              setInitialSmartText('');
+             setShouldAutoPaste(false);
              setShowSmartEntry(true);
            }}
            className="bg-blue-600 hover:bg-blue-700 text-white w-14 h-14 rounded-full shadow-xl shadow-blue-300 flex items-center justify-center transition-transform active:scale-90"
@@ -194,6 +201,7 @@ const App: React.FC = () => {
           onAdd={handleAddTransaction} 
           onClose={() => setShowSmartEntry(false)} 
           initialText={initialSmartText}
+          autoPaste={shouldAutoPaste}
         />
       )}
 
