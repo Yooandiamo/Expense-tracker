@@ -1,0 +1,52 @@
+import React from 'react';
+import { Transaction } from '../types';
+import { Coffee, Car, ShoppingBag, Film, Activity, Home, CreditCard, HelpCircle } from 'lucide-react';
+
+interface Props {
+  transaction: Transaction;
+  onDelete: (id: string) => void;
+}
+
+export const TransactionCard: React.FC<Props> = ({ transaction, onDelete }) => {
+  const dateObj = new Date(transaction.date);
+  
+  const getIcon = (category: string) => {
+    switch(category) {
+      case '餐饮': return <Coffee className="w-5 h-5 text-orange-500" />;
+      case '交通': return <Car className="w-5 h-5 text-blue-500" />;
+      case '购物': return <ShoppingBag className="w-5 h-5 text-pink-500" />;
+      case '娱乐': return <Film className="w-5 h-5 text-purple-500" />;
+      case '医疗': return <Activity className="w-5 h-5 text-green-500" />;
+      case '生活': return <Home className="w-5 h-5 text-yellow-500" />;
+      case '工资': return <CreditCard className="w-5 h-5 text-emerald-500" />;
+      default: return <HelpCircle className="w-5 h-5 text-gray-500" />;
+    }
+  };
+
+  return (
+    <div className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 flex items-center justify-between mb-3 group">
+      <div className="flex items-center gap-4">
+        <div className="w-10 h-10 rounded-full bg-gray-50 flex items-center justify-center">
+          {getIcon(transaction.category)}
+        </div>
+        <div>
+          <h3 className="font-semibold text-gray-800 text-sm">{transaction.description}</h3>
+          <p className="text-xs text-gray-400">
+            {dateObj.toLocaleDateString('zh-CN')} • {dateObj.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })}
+          </p>
+        </div>
+      </div>
+      <div className="text-right">
+        <span className={`font-bold block ${transaction.category === '工资' ? 'text-green-600' : 'text-gray-900'}`}>
+          {transaction.category === '工资' ? '+' : '-'}¥{transaction.amount.toFixed(2)}
+        </span>
+        <button 
+          onClick={() => onDelete(transaction.id)}
+          className="text-xs text-red-400 opacity-0 group-hover:opacity-100 transition-opacity mt-1"
+        >
+          删除
+        </button>
+      </div>
+    </div>
+  );
+};
