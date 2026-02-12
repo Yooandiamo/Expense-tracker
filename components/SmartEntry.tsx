@@ -2,33 +2,68 @@ import React, { useState, useEffect } from 'react';
 import { parseTransactionWithAI } from '../services/geminiService';
 import { ParsedTransactionData, CATEGORIES } from '../types';
 import { Button } from './Button';
-import { Sparkles, X, Check, ClipboardPaste, ArrowDownCircle, ArrowUpCircle, ScanText } from 'lucide-react';
+import { Sparkles, X, Check, ClipboardPaste, ArrowDownCircle, ArrowUpCircle, ScanText, Trash2, PenLine } from 'lucide-react';
 
 interface Props {
   onAdd: (data: ParsedTransactionData) => void;
   onClose: () => void;
   initialText?: string;
   autoPaste?: boolean;
+  // Edit Mode Props
+  mode?: 'add' | 'edit';
+  initialData?: ParsedTransactionData;
+  onDelete?: () => void;
 }
 
-export const SmartEntry: React.FC<Props> = ({ onAdd, onClose, initialText = '', autoPaste = false }) => {
+export const SmartEntry: React.FC<Props> = ({ 
+  onAdd, 
+  onClose, 
+  initialText = '', 
+  autoPaste = false,
+  mode = 'add',
+  initialData,
+  onDelete
+}) => {
   const [input, setInput] = useState(initialText);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [parsedData, setParsedData] = useState<ParsedTransactionData | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [showAutoPasteOverlay, setShowAutoPasteOverlay] = useState(false);
 
-  useEffect(() => {
-    if (initialText) {
-      handleParse(initialText);
-      return;
+  // Initialize parsedData:
+  // 1. If editing, use initialData.
+  // 2. If Adding via Shortcut (autoPaste/initialText), start as NULL (AI Mode).
+  // 3. If Adding manually (FAB), start with default empty object (Manual Mode).
+  const [parsedData, setParsedData] = useState<ParsedTransactionData | null>(() => {
+    if (initialData) return initialData;
+    
+    const isShortcutAction = !!initialText || autoPaste;
+    if (mode === 'add' && !isShortcutAction) {
+       return {
+          amount: 0,
+          type: 'expense',
+          category: '餐饮',
+          description: '',
+          date: new Date().toISOString()
+       };
     }
+    
+    return null;
+  });
 
-    if (autoPaste) {
-      attemptAutoPaste();
+  useEffect(() => {
+    if (mode === 'add') {
+        if (initialText) {
+          handleParse(initialText);
+          return;
+        }
+
+        // Only attempt auto-paste if we are in AI mode (parsedData is null)
+        if (autoPaste && !parsedData) {
+          attemptAutoPaste();
+        }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [initialText, autoPaste]);
+  }, [initialText, autoPaste, mode]);
 
   const attemptAutoPaste = async () => {
     try {
@@ -64,6 +99,17 @@ export const SmartEntry: React.FC<Props> = ({ onAdd, onClose, initialText = '', 
     }
   };
 
+  const handleManualEntry = () => {
+    setParsedData({
+      amount: 0,
+      type: 'expense',
+      category: '餐饮', // Default category
+      description: '',
+      date: new Date().toISOString()
+    });
+    setError(null);
+  };
+
   const handlePaste = async () => {
     try {
       const text = await navigator.clipboard.readText();
@@ -80,6 +126,11 @@ export const SmartEntry: React.FC<Props> = ({ onAdd, onClose, initialText = '', 
 
   const handleConfirm = () => {
     if (parsedData) {
+      // Basic validation
+      if (parsedData.amount <= 0 && mode === 'add') {
+         setError("金额必须大于 0");
+         return;
+      }
       onAdd(parsedData);
       onClose();
     }
@@ -103,9 +154,10 @@ export const SmartEntry: React.FC<Props> = ({ onAdd, onClose, initialText = '', 
         
         <div className="flex justify-between items-center mb-6">
           <div className="flex items-center gap-2 text-blue-600">
-            <Sparkles className="w-5 h-5" />
+            {mode === 'add' && !parsedData ? <Sparkles className="w-5 h-5" /> : null}
+            {mode === 'edit' || parsedData ? <PenLine className="w-5 h-5" /> : null}
             <h2 className="font-bold text-lg">
-              {parsedData ? '识别结果' : 'AI 智能记账'}
+              {mode === 'edit' ? '编辑账单' : (parsedData ? '记一笔' : 'AI 智能记账')}
             </h2>
           </div>
           <button onClick={onClose} className="p-2 bg-gray-100 rounded-full hover:bg-gray-200">
@@ -119,7 +171,7 @@ export const SmartEntry: React.FC<Props> = ({ onAdd, onClose, initialText = '', 
               <textarea
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
-                placeholder="在此粘贴识别出的文字..."
+                placeholder="在此粘贴截图识别出的文字..."
                 className="w-full p-4 bg-gray-50 rounded-2xl border-none focus:ring-2 focus:ring-blue-500 text-sm resize-none h-40 font-mono text-gray-600"
                 autoFocus={!showAutoPasteOverlay}
               />
@@ -153,11 +205,24 @@ export const SmartEntry: React.FC<Props> = ({ onAdd, onClose, initialText = '', 
             <Button 
               onClick={() => handleParse()} 
               isLoading={isProcessing} 
-              className="w-full"
+              className="w-full mb-4"
               disabled={!input.trim()}
             >
               {initialText ? '正在分析...' : '开始分析'}
             </Button>
+            
+            <div className="relative flex py-2 items-center">
+                <div className="flex-grow border-t border-gray-100"></div>
+                <span className="flex-shrink-0 mx-4 text-gray-300 text-xs">或者</span>
+                <div className="flex-grow border-t border-gray-100"></div>
+            </div>
+
+            <button 
+                onClick={handleManualEntry}
+                className="w-full py-3 text-gray-500 font-medium text-sm hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-colors flex items-center justify-center gap-2 mt-2"
+            >
+                <PenLine className="w-4 h-4" /> 直接手动记账
+            </button>
           </>
         ) : (
           <div className="space-y-5">
@@ -202,14 +267,22 @@ export const SmartEntry: React.FC<Props> = ({ onAdd, onClose, initialText = '', 
                   <span className={`absolute top-0 left-0 text-xl font-bold ${parsedData.type === 'income' ? 'text-red-600' : 'text-green-600'}`}>¥</span>
                   <input 
                     type="number" 
-                    value={parsedData.amount}
-                    onChange={(e) => setParsedData({...parsedData, amount: parseFloat(e.target.value)})}
+                    // If amount is 0 (manual default), show empty string to allow easy typing
+                    value={parsedData.amount === 0 ? '' : parsedData.amount}
+                    onChange={(e) => {
+                        const val = parseFloat(e.target.value);
+                        setParsedData({...parsedData, amount: isNaN(val) ? 0 : val})
+                    }}
+                    placeholder="0.00"
                     className={`block w-full bg-transparent text-4xl font-extrabold pl-6 focus:outline-none focus:ring-0 border-b border-transparent hover:border-black/10 transition-colors ${
                       parsedData.type === 'income' ? 'text-red-700' : 'text-green-700'
-                    }`}
+                    } placeholder-gray-300`}
+                    autoFocus={mode !== 'edit'} // Auto focus amount if not editing
                   />
                 </div>
              </div>
+            
+             {error && <p className="text-red-500 text-xs text-center">{error}</p>}
 
              <div className="space-y-4">
                <div>
@@ -218,6 +291,7 @@ export const SmartEntry: React.FC<Props> = ({ onAdd, onClose, initialText = '', 
                     type="text" 
                     value={parsedData.description}
                     onChange={(e) => setParsedData({...parsedData, description: e.target.value})}
+                    placeholder="例如：午饭、打车..."
                     className="w-full p-3 bg-gray-50 rounded-xl border border-gray-100 focus:ring-2 focus:ring-blue-500 outline-none font-medium text-gray-800"
                   />
                </div>
@@ -243,9 +317,22 @@ export const SmartEntry: React.FC<Props> = ({ onAdd, onClose, initialText = '', 
              </div>
 
              <div className="flex gap-3 pt-2">
-               <Button variant="secondary" onClick={() => setParsedData(null)} className="flex-1">重试</Button>
-               <Button onClick={handleConfirm} className="flex-1 py-4 text-lg">
-                 <Check className="w-5 h-5 mr-2" /> 确认记账
+               {mode === 'edit' && onDelete ? (
+                 <Button variant="danger" onClick={onDelete} className="flex-1 border border-red-100">
+                    <Trash2 className="w-5 h-5 mr-2" /> 删除
+                 </Button>
+               ) : (
+                 <Button variant="secondary" onClick={() => {
+                     setParsedData(null); // Go back to AI/Manual selection
+                     setError(null);
+                 }} className="flex-1">
+                    <Sparkles className="w-4 h-4 mr-1 text-blue-500 fill-current opacity-70" /> 
+                    <span className="text-blue-600">AI 记账</span>
+                 </Button>
+               )}
+               
+               <Button onClick={handleConfirm} className="flex-[2] py-4 text-lg">
+                 <Check className="w-5 h-5 mr-2" /> {mode === 'edit' ? '保存修改' : '确认记账'}
                </Button>
              </div>
           </div>

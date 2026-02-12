@@ -7,10 +7,10 @@ import {
 
 interface Props {
   transaction: Transaction;
-  onDelete: (id: string) => void;
+  onClick: (transaction: Transaction) => void;
 }
 
-export const TransactionCard: React.FC<Props> = ({ transaction, onDelete }) => {
+export const TransactionCard: React.FC<Props> = ({ transaction, onClick }) => {
   const dateObj = new Date(transaction.date);
   const isIncome = transaction.type === 'income';
   
@@ -41,7 +41,10 @@ export const TransactionCard: React.FC<Props> = ({ transaction, onDelete }) => {
   };
 
   return (
-    <div className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 flex items-center justify-between group transition-all hover:shadow-md active:bg-gray-50">
+    <div 
+      onClick={() => onClick(transaction)}
+      className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 flex items-center justify-between group transition-all hover:shadow-md active:bg-gray-50 active:scale-[0.98] cursor-pointer"
+    >
       <div className="flex items-center gap-4">
         {/* Icon Background: Income=Red, Expense=Green */}
         <div className={`w-10 h-10 rounded-full flex items-center justify-center ${isIncome ? 'bg-red-50' : 'bg-green-50'}`}>
