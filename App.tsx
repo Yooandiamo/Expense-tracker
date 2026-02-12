@@ -17,8 +17,8 @@ const App: React.FC = () => {
   const [showSmartEntry, setShowSmartEntry] = useState(false);
   const [showShortcutGuide, setShowShortcutGuide] = useState(false);
   const [initialSmartText, setInitialSmartText] = useState('');
-  const [shouldAutoPaste, setShouldAutoPaste] = useState(false);
-
+  // 移除 autoPaste 状态，因为 URL 传参不需要 autoPaste 逻辑
+  
   // Save to local storage
   useEffect(() => {
     localStorage.setItem('gemini-expenses', JSON.stringify(transactions));
@@ -29,17 +29,15 @@ const App: React.FC = () => {
     // Check for query params
     const params = new URLSearchParams(window.location.search);
     const text = params.get('text') || params.get('input') || params.get('q');
-    const action = params.get('action'); // Support ?action=create
     
     if (text) {
-      setInitialSmartText(text);
+      console.log("Detected text from URL:", text);
+      // 解码 URL 内容 (虽然 URLSearchParams 通常会自动处理，但为了保险)
+      const decodedText = decodeURIComponent(text);
+      setInitialSmartText(decodedText);
       setShowSmartEntry(true);
-      // Clean URL
-      window.history.replaceState({}, document.title, window.location.pathname);
-    } else if (action === 'create' || action === 'add') {
-      // Auto open for clipboard paste flow
-      setShowSmartEntry(true);
-      setShouldAutoPaste(true); // Tell SmartEntry to try auto-pasting
+      
+      // Clean URL to prevent re-triggering on refresh
       window.history.replaceState({}, document.title, window.location.pathname);
     }
   }, []);
@@ -53,7 +51,6 @@ const App: React.FC = () => {
     setTransactions(prev => [newTransaction, ...prev]);
     setShowSmartEntry(false);
     setInitialSmartText('');
-    setShouldAutoPaste(false);
   };
 
   const handleDelete = (id: string) => {
@@ -127,7 +124,7 @@ const App: React.FC = () => {
                 <div className="flex flex-col gap-3 items-center">
                   <button 
                     onClick={() => {
-                      setShouldAutoPaste(false);
+                      setInitialSmartText('');
                       setShowSmartEntry(true);
                     }}
                     className="text-blue-600 font-medium bg-blue-50 px-6 py-2 rounded-full"
@@ -167,7 +164,6 @@ const App: React.FC = () => {
          <button 
            onClick={() => {
              setInitialSmartText('');
-             setShouldAutoPaste(false);
              setShowSmartEntry(true);
            }}
            className="bg-blue-600 hover:bg-blue-700 text-white w-14 h-14 rounded-full shadow-xl shadow-blue-300 flex items-center justify-center transition-transform active:scale-90"
@@ -201,7 +197,6 @@ const App: React.FC = () => {
           onAdd={handleAddTransaction} 
           onClose={() => setShowSmartEntry(false)} 
           initialText={initialSmartText}
-          autoPaste={shouldAutoPaste}
         />
       )}
 
