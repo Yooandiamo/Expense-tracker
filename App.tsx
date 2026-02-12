@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { Transaction, ParsedTransactionData, ViewState } from './types';
 import { TransactionCard } from './components/TransactionCard';
@@ -68,10 +68,46 @@ const App: React.FC = () => {
     .filter(t => t.type === 'income')
     .reduce((sum, t) => sum + t.amount, 0);
 
-  // Sort transactions by Date (Descending) for display
-  const sortedTransactions = [...transactions].sort((a, b) => {
-    return new Date(b.date).getTime() - new Date(a.date).getTime();
-  });
+  // Group transactions by Date
+  const groupedTransactions = useMemo(() => {
+    // 1. Sort by date first
+    const sorted = [...transactions].sort((a, b) => {
+      return new Date(b.date).getTime() - new Date(a.date).getTime();
+    });
+
+    // 2. Group by "YYYY-MM-DD"
+    const groups: { [key: string]: { date: Date, items: Transaction[], totalExpense: number } } = {};
+    
+    sorted.forEach(t => {
+      const dateObj = new Date(t.date);
+      // Construct local date string key to group correctly
+      const dateKey = dateObj.toLocaleDateString('zh-CN'); 
+      
+      if (!groups[dateKey]) {
+        groups[dateKey] = {
+          date: dateObj,
+          items: [],
+          totalExpense: 0
+        };
+      }
+      
+      groups[dateKey].items.push(t);
+      if (t.type === 'expense') {
+        groups[dateKey].totalExpense += t.amount;
+      }
+    });
+
+    // 3. Convert back to array (keys are implicitly roughly sorted because of step 1, but let's be safe)
+    return Object.values(groups).sort((a, b) => b.date.getTime() - a.date.getTime());
+  }, [transactions]);
+
+  const formatDateHeader = (date: Date) => {
+    const m = (date.getMonth() + 1).toString().padStart(2, '0');
+    const d = date.getDate().toString().padStart(2, '0');
+    const weekdays = ['星期日', '星期一', '星期二', '星期三', '星期四', '星期五', '星期六'];
+    const w = weekdays[date.getDay()];
+    return `${m}月${d}日 ${w}`;
+  };
 
   return (
     <div className="min-h-screen pb-24 font-sans text-gray-900 max-w-lg mx-auto bg-gray-50 shadow-2xl overflow-hidden relative">
@@ -113,16 +149,16 @@ const App: React.FC = () => {
       </header>
 
       {/* Main Content */}
-      <main className="p-6">
+      <main className="p-4 sm:p-6">
         {view === ViewState.DASHBOARD && (
           <>
-            <div className="flex justify-between items-center mb-4">
+            <div className="flex justify-between items-center mb-4 px-2">
               <h2 className="font-bold text-xl text-gray-800">最近账单</h2>
               <button onClick={() => setView(ViewState.STATS)} className="text-blue-600 text-sm font-medium">查看分析</button>
             </div>
             
-            {sortedTransactions.length === 0 ? (
-              <div className="text-center py-12 bg-white rounded-3xl border border-dashed border-gray-200">
+            {groupedTransactions.length === 0 ? (
+              <div className="text-center py-12 bg-white rounded-3xl border border-dashed border-gray-200 mx-2">
                 <p className="text-gray-400 mb-4">暂无账单</p>
                 <div className="flex flex-col gap-3 items-center">
                   <button 
@@ -143,10 +179,28 @@ const App: React.FC = () => {
                 </div>
               </div>
             ) : (
-              <div className="space-y-1">
-                {/* Show top 20 recent transactions */}
-                {sortedTransactions.slice(0, 20).map(t => (
-                  <TransactionCard key={t.id} transaction={t} onDelete={handleDelete} />
+              <div className="space-y-6">
+                {groupedTransactions.map((group) => (
+                  <div key={group.date.toISOString()}>
+                    {/* Date Header */}
+                    <div className="flex justify-between items-end px-2 mb-2">
+                      <span className="text-xs text-gray-500 font-medium">
+                        {formatDateHeader(group.date)}
+                      </span>
+                      {group.totalExpense > 0 && (
+                        <span className="text-xs text-gray-400">
+                          支出: <span className="text-gray-600 font-bold">{Math.floor(group.totalExpense)}</span>
+                        </span>
+                      )}
+                    </div>
+                    
+                    {/* List Items */}
+                    <div className="space-y-1">
+                      {group.items.map(t => (
+                        <TransactionCard key={t.id} transaction={t} onDelete={handleDelete} />
+                      ))}
+                    </div>
+                  </div>
                 ))}
               </div>
             )}
@@ -155,10 +209,10 @@ const App: React.FC = () => {
 
         {view === ViewState.STATS && (
           <div className="animate-fade-in">
-             <div className="flex items-center mb-4 cursor-pointer" onClick={() => setView(ViewState.DASHBOARD)}>
+             <div className="flex items-center mb-4 cursor-pointer px-2" onClick={() => setView(ViewState.DASHBOARD)}>
                <span className="text-blue-600 text-sm font-medium">← 返回账单列表</span>
              </div>
-             <Stats transactions={sortedTransactions} />
+             <Stats transactions={transactions} />
           </div>
         )}
       </main>
