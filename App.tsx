@@ -55,6 +55,7 @@ const App: React.FC = () => {
     setTransactions(prev => prev.filter(t => t.id !== id));
   };
 
+  // Calculate Totals based on Type
   const totalBalance = transactions.reduce((sum, t) => {
     return t.type === 'income' ? sum + t.amount : sum - t.amount;
   }, 0);
@@ -66,6 +67,11 @@ const App: React.FC = () => {
   const totalIncome = transactions
     .filter(t => t.type === 'income')
     .reduce((sum, t) => sum + t.amount, 0);
+
+  // Sort transactions by Date (Descending) for display
+  const sortedTransactions = [...transactions].sort((a, b) => {
+    return new Date(b.date).getTime() - new Date(a.date).getTime();
+  });
 
   return (
     <div className="min-h-screen pb-24 font-sans text-gray-900 max-w-lg mx-auto bg-gray-50 shadow-2xl overflow-hidden relative">
@@ -115,7 +121,7 @@ const App: React.FC = () => {
               <button onClick={() => setView(ViewState.STATS)} className="text-blue-600 text-sm font-medium">查看分析</button>
             </div>
             
-            {transactions.length === 0 ? (
+            {sortedTransactions.length === 0 ? (
               <div className="text-center py-12 bg-white rounded-3xl border border-dashed border-gray-200">
                 <p className="text-gray-400 mb-4">暂无账单</p>
                 <div className="flex flex-col gap-3 items-center">
@@ -138,7 +144,8 @@ const App: React.FC = () => {
               </div>
             ) : (
               <div className="space-y-1">
-                {transactions.slice(0, 10).map(t => (
+                {/* Show top 20 recent transactions */}
+                {sortedTransactions.slice(0, 20).map(t => (
                   <TransactionCard key={t.id} transaction={t} onDelete={handleDelete} />
                 ))}
               </div>
@@ -151,7 +158,7 @@ const App: React.FC = () => {
              <div className="flex items-center mb-4 cursor-pointer" onClick={() => setView(ViewState.DASHBOARD)}>
                <span className="text-blue-600 text-sm font-medium">← 返回账单列表</span>
              </div>
-             <Stats transactions={transactions} />
+             <Stats transactions={sortedTransactions} />
           </div>
         )}
       </main>
