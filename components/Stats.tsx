@@ -1,160 +1,308 @@
 import React, { useState, useMemo } from 'react';
-import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recharts';
-import { Transaction } from '../types';
-import { ChevronLeft, ChevronRight, Calendar } from 'lucide-react';
+import { 
+  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area
+} from 'recharts';
+import { Transaction, CATEGORIES } from '../types';
+import { 
+  ChevronLeft, ChevronRight, 
+  Coffee, ShoppingBag, Home, Car, Apple, Dumbbell, Film, Smartphone, Shirt, Sparkles, Bed, Laptop, CreditCard, Banknote, TrendingUp, HelpCircle 
+} from 'lucide-react';
 
 interface Props {
   transactions: Transaction[];
 }
 
+type ViewMode = 'week' | 'month' | 'year';
+
 export const Stats: React.FC<Props> = ({ transactions }) => {
-  // 当前查看的日期（默认为当前月）
+  const [viewMode, setViewMode] = useState<ViewMode>('month');
   const [currentDate, setCurrentDate] = useState(new Date());
 
-  // 切换月份
-  const changeMonth = (delta: number) => {
+  // --- Date Helpers ---
+
+  const getStartOfWeek = (date: Date) => {
+    const d = new Date(date);
+    const day = d.getDay(); // 0 is Sunday
+    const diff = d.getDate() - day + (day === 0 ? -6 : 1); // Adjust when day is sunday
+    d.setDate(diff);
+    d.setHours(0, 0, 0, 0);
+    return d;
+  };
+
+  const getEndOfWeek = (date: Date) => {
+    const d = getStartOfWeek(date);
+    d.setDate(d.getDate() + 6);
+    d.setHours(23, 59, 59, 999);
+    return d;
+  };
+
+  const getStartOfMonth = (date: Date) => new Date(date.getFullYear(), date.getMonth(), 1);
+  const getEndOfMonth = (date: Date) => new Date(date.getFullYear(), date.getMonth() + 1, 0, 23, 59, 59, 999);
+
+  const getStartOfYear = (date: Date) => new Date(date.getFullYear(), 0, 1);
+  const getEndOfYear = (date: Date) => new Date(date.getFullYear(), 11, 31, 23, 59, 59, 999);
+
+  const navigate = (direction: -1 | 1) => {
     const newDate = new Date(currentDate);
-    newDate.setMonth(newDate.getMonth() + delta);
+    if (viewMode === 'week') {
+      newDate.setDate(newDate.getDate() + direction * 7);
+    } else if (viewMode === 'month') {
+      newDate.setMonth(newDate.getMonth() + direction);
+    } else {
+      newDate.setFullYear(newDate.getFullYear() + direction);
+    }
     setCurrentDate(newDate);
   };
 
-  // 格式化年月显示
-  const formatMonth = (date: Date) => {
-    return `${date.getFullYear()}年${date.getMonth() + 1}月`;
+  const formatDateLabel = (date: Date) => {
+    if (viewMode === 'week') {
+      const start = getStartOfWeek(date);
+      const end = getEndOfWeek(date);
+      return `${start.getMonth() + 1}月${start.getDate()}日 - ${end.getMonth() + 1}月${end.getDate()}日`;
+    }
+    if (viewMode === 'month') {
+      return `${date.getFullYear()}年 ${date.getMonth() + 1}月`;
+    }
+    return `${date.getFullYear()}年`;
   };
 
-  // 筛选当前月份的数据
-  const monthlyData = useMemo(() => {
-    const year = currentDate.getFullYear();
-    const month = currentDate.getMonth();
+  const getWeekNumber = (d: Date) => {
+    d = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+    d.setUTCDate(d.getUTCDate() + 4 - (d.getUTCDay()||7));
+    var yearStart = new Date(Date.UTC(d.getUTCFullYear(),0,1));
+    var weekNo = Math.ceil(( ( (d.getTime() - yearStart.getTime()) / 86400000) + 1)/7);
+    return weekNo;
+  }
 
-    return transactions.filter(t => {
+  // --- Data Processing ---
+
+  const { filteredTransactions, totalExpense, averageExpense, chartData, rankingData } = useMemo(() => {
+    let start: Date, end: Date;
+    
+    if (viewMode === 'week') {
+      start = getStartOfWeek(currentDate);
+      end = getEndOfWeek(currentDate);
+    } else if (viewMode === 'month') {
+      start = getStartOfMonth(currentDate);
+      end = getEndOfMonth(currentDate);
+    } else {
+      start = getStartOfYear(currentDate);
+      end = getEndOfYear(currentDate);
+    }
+
+    const filtered = transactions.filter(t => {
       const tDate = new Date(t.date);
-      return tDate.getFullYear() === year && tDate.getMonth() === month;
+      return tDate >= start && tDate <= end && t.type === 'expense';
     });
-  }, [transactions, currentDate]);
 
-  // 计算该月总收支
-  const { totalExpense, totalIncome, expenseData } = useMemo(() => {
-    let expense = 0;
-    let income = 0;
-    const categoryMap = new Map<string, number>();
+    const total = filtered.reduce((sum, t) => sum + t.amount, 0);
+    
+    // Calculate Average
+    let avg = 0;
+    if (viewMode === 'week') avg = total / 7;
+    else if (viewMode === 'month') avg = total / end.getDate(); // Divide by days in month
+    else avg = total / 12; // Monthly average for year view
 
-    monthlyData.forEach(t => {
-      if (t.type === 'expense') {
-        expense += t.amount;
-        // 聚合分类数据
-        const currentVal = categoryMap.get(t.category) || 0;
-        categoryMap.set(t.category, currentVal + t.amount);
+    // Prepare Chart Data
+    let dataPoints: any[] = [];
+    const groupedByTime: Record<string, number> = {};
+
+    filtered.forEach(t => {
+      const tDate = new Date(t.date);
+      let key = '';
+      if (viewMode === 'week') {
+        const days = ['周日','周一','周二','周三','周四','周五','周六'];
+        key = days[tDate.getDay()];
+      } else if (viewMode === 'month') {
+        key = `${tDate.getMonth() + 1}-${tDate.getDate()}`;
       } else {
-        income += t.amount;
+        key = `${tDate.getMonth() + 1}月`;
       }
+      groupedByTime[key] = (groupedByTime[key] || 0) + t.amount;
     });
 
-    // 转换为图表数据格式
-    const chartData = Array.from(categoryMap.entries())
-      .map(([name, value]) => ({ name, value }))
+    if (viewMode === 'week') {
+      const weekDays = ['周一','周二','周三','周四','周五','周六','周日'];
+      dataPoints = weekDays.map(day => ({ name: day, value: groupedByTime[day] || 0 }));
+    } else if (viewMode === 'month') {
+      const daysInMonth = end.getDate();
+      for (let i = 1; i <= daysInMonth; i++) {
+        const key = `${currentDate.getMonth() + 1}-${i}`;
+        // Only show points for every 5 days or if it has data to reduce clutter, 
+        // OR just show all but format axis interval
+        dataPoints.push({ name: `${i}日`, value: groupedByTime[key] || 0, fullDate: key });
+      }
+    } else {
+      for (let i = 1; i <= 12; i++) {
+        const key = `${i}月`;
+        dataPoints.push({ name: key, value: groupedByTime[key] || 0 });
+      }
+    }
+
+    // Prepare Ranking Data
+    const groupedByCategory: Record<string, number> = {};
+    filtered.forEach(t => {
+      groupedByCategory[t.category] = (groupedByCategory[t.category] || 0) + t.amount;
+    });
+
+    const ranking = Object.entries(groupedByCategory)
+      .map(([name, value]) => ({ name, value, percent: total > 0 ? (value / total) * 100 : 0 }))
       .sort((a, b) => b.value - a.value);
 
-    return { totalExpense: expense, totalIncome: income, expenseData: chartData };
-  }, [monthlyData]);
+    return { 
+      filteredTransactions: filtered, 
+      totalExpense: total, 
+      averageExpense: avg, 
+      chartData: dataPoints, 
+      rankingData: ranking 
+    };
+  }, [transactions, viewMode, currentDate]);
 
-  const COLORS = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899', '#6366F1', '#9CA3AF'];
+  // --- Icon Helper ---
+  const getIcon = (category: string) => {
+    const style = "w-5 h-5";
+    switch(category) {
+      case '餐饮': return <Coffee className={`${style} text-orange-500`} />;
+      case '购物': return <ShoppingBag className={`${style} text-pink-500`} />;
+      case '日用': return <Home className={`${style} text-yellow-500`} />;
+      case '交通': return <Car className={`${style} text-blue-500`} />;
+      case '水果': return <Apple className={`${style} text-red-400`} />;
+      case '运动': return <Dumbbell className={`${style} text-indigo-500`} />;
+      case '娱乐': return <Film className={`${style} text-purple-500`} />;
+      case '通讯': return <Smartphone className={`${style} text-cyan-500`} />;
+      case '服饰': return <Shirt className={`${style} text-rose-500`} />;
+      case '美容': return <Sparkles className={`${style} text-fuchsia-500`} />;
+      case '酒店': return <Bed className={`${style} text-teal-500`} />;
+      case '数码': return <Laptop className={`${style} text-slate-500`} />;
+      default: return <HelpCircle className={`${style} text-gray-400`} />;
+    }
+  };
 
   return (
-    <div className="pb-20">
-      {/* 月份切换器 */}
-      <div className="bg-white p-4 rounded-3xl shadow-sm border border-gray-100 mb-6 flex items-center justify-between">
-        <button 
-          onClick={() => changeMonth(-1)}
-          className="p-2 hover:bg-gray-100 rounded-full text-gray-600 transition-colors"
-        >
-          <ChevronLeft className="w-5 h-5" />
+    <div className="pb-24 bg-white min-h-screen">
+      {/* 1. Top Tabs */}
+      <div className="bg-gray-50 p-1 mx-4 mt-4 rounded-xl flex sticky top-0 z-10">
+        {(['week', 'month', 'year'] as ViewMode[]).map(mode => (
+          <button
+            key={mode}
+            onClick={() => setViewMode(mode)}
+            className={`flex-1 py-2 text-sm font-bold rounded-lg transition-all ${
+              viewMode === mode 
+                ? 'bg-white text-blue-600 shadow-sm' 
+                : 'text-gray-400 hover:text-gray-600'
+            }`}
+          >
+            {mode === 'week' ? '周' : mode === 'month' ? '月' : '年'}
+          </button>
+        ))}
+      </div>
+
+      {/* 2. Date Navigator */}
+      <div className="flex items-center justify-between px-6 py-4">
+        <button onClick={() => navigate(-1)} className="p-2 bg-gray-50 rounded-full hover:bg-gray-100">
+          <ChevronLeft className="w-5 h-5 text-gray-600" />
         </button>
-        <div className="flex items-center gap-2">
-          <Calendar className="w-5 h-5 text-blue-600" />
-          <span className="font-bold text-lg text-gray-800">{formatMonth(currentDate)}</span>
+        <div className="text-center">
+          <p className="text-xs text-gray-400 mb-1 font-medium">
+             {viewMode === 'week' ? `第 ${getWeekNumber(currentDate)} 周` : 
+              viewMode === 'month' ? '月份' : '年份'}
+          </p>
+          <p className="text-lg font-bold text-gray-800">{formatDateLabel(currentDate)}</p>
         </div>
-        <button 
-          onClick={() => changeMonth(1)}
-          className="p-2 hover:bg-gray-100 rounded-full text-gray-600 transition-colors"
-          disabled={new Date().getMonth() === currentDate.getMonth() && new Date().getFullYear() === currentDate.getFullYear()}
+        <button onClick={() => navigate(1)} 
+          className="p-2 bg-gray-50 rounded-full hover:bg-gray-100 disabled:opacity-30"
+          disabled={
+             (viewMode === 'week' && getEndOfWeek(currentDate) > new Date()) ||
+             (viewMode === 'month' && getEndOfMonth(currentDate) > new Date()) ||
+             (viewMode === 'year' && getEndOfYear(currentDate) > new Date())
+          }
         >
-          <ChevronRight className={`w-5 h-5 ${new Date() < currentDate ? 'text-gray-300' : 'text-gray-600'}`} />
+          <ChevronRight className="w-5 h-5 text-gray-600" />
         </button>
       </div>
 
-      {/* 月度概览卡片 */}
-      <div className="grid grid-cols-2 gap-4 mb-6">
-        <div className="bg-red-50 p-4 rounded-2xl border border-red-100">
-           <p className="text-xs text-red-400 font-bold uppercase mb-1">月支出</p>
-           <p className="text-xl font-extrabold text-red-600">¥{totalExpense.toFixed(2)}</p>
-        </div>
-        <div className="bg-green-50 p-4 rounded-2xl border border-green-100">
-           <p className="text-xs text-green-400 font-bold uppercase mb-1">月收入</p>
-           <p className="text-xl font-extrabold text-green-600">¥{totalIncome.toFixed(2)}</p>
+      {/* 3. Summary */}
+      <div className="px-6 mb-6">
+        <div className="flex justify-between items-end border-b border-gray-100 pb-4">
+          <div>
+            <p className="text-xs text-gray-400 mb-1">总支出</p>
+            <p className="text-2xl font-bold text-gray-900">¥{totalExpense.toFixed(2)}</p>
+          </div>
+          <div className="text-right">
+             <p className="text-xs text-gray-400 mb-1">
+               {viewMode === 'year' ? '月均' : '日均'}值
+             </p>
+             <p className="text-lg font-bold text-gray-500">¥{averageExpense.toFixed(2)}</p>
+          </div>
         </div>
       </div>
 
-      {/* 饼图区域 */}
-      <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100 mb-6">
-        <h3 className="text-lg font-bold text-gray-800 mb-6 flex items-center gap-2">
-          <div className="w-1 h-4 bg-blue-600 rounded-full"></div>
-          支出构成
-        </h3>
-        
-        {expenseData.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-64 text-gray-300 border-2 border-dashed border-gray-100 rounded-2xl">
-            <p>本月暂无支出</p>
-          </div>
-        ) : (
-          <div className="h-64 w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie
-                  data={expenseData}
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={60}
-                  outerRadius={80}
-                  paddingAngle={5}
-                  dataKey="value"
-                >
-                  {expenseData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                  ))}
-                </Pie>
-                <Tooltip 
-                  formatter={(value: number) => `¥${value.toFixed(2)}`}
-                  contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
-                />
-              </PieChart>
-            </ResponsiveContainer>
-          </div>
-        )}
+      {/* 4. Chart */}
+      <div className="h-48 w-full px-2 mb-8">
+        <ResponsiveContainer width="100%" height="100%">
+          <AreaChart data={chartData}>
+            <defs>
+              <linearGradient id="colorValue" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="5%" stopColor="#3B82F6" stopOpacity={0.1}/>
+                <stop offset="95%" stopColor="#3B82F6" stopOpacity={0}/>
+              </linearGradient>
+            </defs>
+            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f3f4f6" />
+            <XAxis 
+              dataKey="name" 
+              axisLine={false} 
+              tickLine={false} 
+              tick={{fontSize: 10, fill: '#9CA3AF'}} 
+              interval={viewMode === 'month' ? 4 : 0} // Avoid clutter in month view
+              padding={{ left: 10, right: 10 }}
+            />
+            <Tooltip 
+              contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+              cursor={{ stroke: '#3B82F6', strokeWidth: 1, strokeDasharray: '4 4' }}
+              formatter={(value: number) => [`¥${value.toFixed(2)}`, '支出']}
+            />
+            <Area 
+              type="monotone" 
+              dataKey="value" 
+              stroke="#3B82F6" 
+              strokeWidth={2}
+              fillOpacity={1} 
+              fill="url(#colorValue)" 
+              activeDot={{ r: 6, strokeWidth: 0, fill: '#2563EB' }}
+            />
+          </AreaChart>
+        </ResponsiveContainer>
       </div>
 
-      {/* 排行榜 */}
-      {expenseData.length > 0 && (
-        <div className="space-y-3">
-          <h3 className="text-lg font-bold text-gray-800 px-2">分类排行</h3>
-          {expenseData.map((item, index) => (
-            <div key={item.name} className="bg-white p-4 rounded-2xl flex items-center justify-between border border-gray-50">
-              <div className="flex items-center gap-3">
-                <div 
-                  className="w-3 h-3 rounded-full" 
-                  style={{ backgroundColor: COLORS[index % COLORS.length] }}
-                ></div>
-                <span className="font-medium text-gray-700">{item.name}</span>
-                <span className="text-xs text-gray-400">
-                  {((item.value / totalExpense) * 100).toFixed(1)}%
-                </span>
+      {/* 5. Ranking List */}
+      <div className="px-6">
+        <h3 className="font-bold text-lg text-gray-800 mb-4">支出排行榜</h3>
+        <div className="space-y-5">
+          {rankingData.length === 0 ? (
+            <div className="text-center py-10 text-gray-400 text-sm">暂无数据</div>
+          ) : (
+            rankingData.map((item, index) => (
+              <div key={item.name} className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-gray-50 flex items-center justify-center flex-shrink-0">
+                  {getIcon(item.name)}
+                </div>
+                <div className="flex-1">
+                  <div className="flex justify-between mb-1">
+                    <span className="text-sm font-medium text-gray-700">{item.name} <span className="text-gray-400 text-xs ml-1">{item.percent.toFixed(1)}%</span></span>
+                    <span className="text-sm font-bold text-gray-900">¥{item.value.toFixed(1)}</span>
+                  </div>
+                  <div className="h-2 w-full bg-gray-100 rounded-full overflow-hidden">
+                    <div 
+                      className="h-full bg-blue-500 rounded-full" 
+                      style={{ width: `${item.percent}%` }}
+                    ></div>
+                  </div>
+                </div>
               </div>
-              <span className="font-bold text-gray-900">¥{item.value.toFixed(2)}</span>
-            </div>
-          ))}
+            ))
+          )}
         </div>
-      )}
+      </div>
     </div>
   );
 };
