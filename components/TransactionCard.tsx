@@ -43,22 +43,22 @@ export const TransactionCard: React.FC<Props> = ({ transaction, onDelete }) => {
   return (
     <div className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 flex items-center justify-between group transition-all hover:shadow-md active:bg-gray-50">
       <div className="flex items-center gap-4">
-        <div className={`w-10 h-10 rounded-full flex items-center justify-center ${isIncome ? 'bg-green-50' : 'bg-gray-50'}`}>
+        {/* Icon Background: Income=Red, Expense=Green */}
+        <div className={`w-10 h-10 rounded-full flex items-center justify-center ${isIncome ? 'bg-red-50' : 'bg-green-50'}`}>
           {getIcon(transaction.category)}
         </div>
         <div>
           <h3 className="font-semibold text-gray-800 text-sm">{transaction.description}</h3>
-          {/* 只显示时间，因为日期在分组标题中 */}
           <p className="text-xs text-gray-400">
             {dateObj.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })}
           </p>
         </div>
       </div>
       <div className="text-right">
-        <span className={`font-bold block text-lg ${isIncome ? 'text-green-600' : 'text-gray-900'}`}>
+        {/* Amount Text: Income=Red, Expense=Green */}
+        <span className={`font-bold block text-lg ${isIncome ? 'text-red-600' : 'text-green-600'}`}>
           {isIncome ? '+' : ''}{Math.floor(transaction.amount) === transaction.amount ? transaction.amount : transaction.amount.toFixed(2)}
         </span>
-        {/* Mobile-friendly delete via standard swipe usually, but button for now */}
       </div>
     </div>
   );

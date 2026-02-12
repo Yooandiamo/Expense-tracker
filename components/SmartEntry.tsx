@@ -32,7 +32,6 @@ export const SmartEntry: React.FC<Props> = ({ onAdd, onClose, initialText = '', 
 
   const attemptAutoPaste = async () => {
     try {
-      // 尝试静默读取 (PC Chrome 可能成功, iOS Safari 会报错)
       const text = await navigator.clipboard.readText();
       if (text) {
         setInput(text);
@@ -41,7 +40,6 @@ export const SmartEntry: React.FC<Props> = ({ onAdd, onClose, initialText = '', 
         setShowAutoPasteOverlay(true);
       }
     } catch (err) {
-      // 权限拦截，显示“点击”覆盖层
       console.log("需要用户交互才能读取剪贴板");
       setShowAutoPasteOverlay(true);
     }
@@ -136,10 +134,6 @@ export const SmartEntry: React.FC<Props> = ({ onAdd, onClose, initialText = '', 
                  </button>
               </div>
 
-              {/* 
-                 iOS Safari 兼容方案：
-                 当快捷指令触发时，显示此全屏按钮。用户“盲点”屏幕任意位置即可触发剪贴板读取。
-              */}
               {showAutoPasteOverlay && (
                 <div 
                   onClick={handlePaste}
@@ -167,16 +161,16 @@ export const SmartEntry: React.FC<Props> = ({ onAdd, onClose, initialText = '', 
           </>
         ) : (
           <div className="space-y-5">
-             {/* 核心金额卡片 */}
+             {/* 核心金额卡片 - 支出Green / 收入Red */}
              <div className={`p-5 rounded-2xl border transition-colors ${
-               parsedData.type === 'income' ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'
+               parsedData.type === 'income' ? 'bg-red-50 border-red-200' : 'bg-green-50 border-green-200'
              }`}>
                 <div className="flex justify-between items-center mb-4">
                   <div className="flex bg-white/60 p-1 rounded-lg">
                      <button
                        onClick={() => setParsedData({...parsedData, type: 'expense'})}
                        className={`px-3 py-1 rounded-md text-xs font-bold flex items-center gap-1 transition-all ${
-                         parsedData.type === 'expense' ? 'bg-white shadow-sm text-red-600' : 'text-gray-400'
+                         parsedData.type === 'expense' ? 'bg-white shadow-sm text-green-600' : 'text-gray-400'
                        }`}
                      >
                        <ArrowUpCircle className="w-3 h-3" /> 支出
@@ -184,7 +178,7 @@ export const SmartEntry: React.FC<Props> = ({ onAdd, onClose, initialText = '', 
                      <button
                        onClick={() => setParsedData({...parsedData, type: 'income'})}
                        className={`px-3 py-1 rounded-md text-xs font-bold flex items-center gap-1 transition-all ${
-                         parsedData.type === 'income' ? 'bg-white shadow-sm text-green-600' : 'text-gray-400'
+                         parsedData.type === 'income' ? 'bg-white shadow-sm text-red-600' : 'text-gray-400'
                        }`}
                      >
                        <ArrowDownCircle className="w-3 h-3" /> 收入
@@ -205,13 +199,13 @@ export const SmartEntry: React.FC<Props> = ({ onAdd, onClose, initialText = '', 
                 </div>
 
                 <div className="relative">
-                  <span className={`absolute top-0 left-0 text-xl font-bold ${parsedData.type === 'income' ? 'text-green-600' : 'text-red-600'}`}>¥</span>
+                  <span className={`absolute top-0 left-0 text-xl font-bold ${parsedData.type === 'income' ? 'text-red-600' : 'text-green-600'}`}>¥</span>
                   <input 
                     type="number" 
                     value={parsedData.amount}
                     onChange={(e) => setParsedData({...parsedData, amount: parseFloat(e.target.value)})}
                     className={`block w-full bg-transparent text-4xl font-extrabold pl-6 focus:outline-none focus:ring-0 border-b border-transparent hover:border-black/10 transition-colors ${
-                      parsedData.type === 'income' ? 'text-green-700' : 'text-red-700'
+                      parsedData.type === 'income' ? 'text-red-700' : 'text-green-700'
                     }`}
                   />
                 </div>

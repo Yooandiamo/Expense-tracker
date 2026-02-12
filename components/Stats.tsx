@@ -188,7 +188,7 @@ export const Stats: React.FC<Props> = ({ transactions }) => {
             onClick={() => setViewMode(mode)}
             className={`flex-1 py-2 text-sm font-bold rounded-lg transition-all ${
               viewMode === mode 
-                ? 'bg-white text-blue-600 shadow-sm' 
+                ? 'bg-white text-green-600 shadow-sm' // Active: Green
                 : 'text-gray-400 hover:text-gray-600'
             }`}
           >
@@ -243,8 +243,8 @@ export const Stats: React.FC<Props> = ({ transactions }) => {
           <AreaChart data={chartData}>
             <defs>
               <linearGradient id="colorValue" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor="#3B82F6" stopOpacity={0.1}/>
-                <stop offset="95%" stopColor="#3B82F6" stopOpacity={0}/>
+                <stop offset="5%" stopColor="#22c55e" stopOpacity={0.1}/> {/* Green-500 */}
+                <stop offset="95%" stopColor="#22c55e" stopOpacity={0}/>
               </linearGradient>
             </defs>
             <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f3f4f6" />
@@ -258,17 +258,17 @@ export const Stats: React.FC<Props> = ({ transactions }) => {
             />
             <Tooltip 
               contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
-              cursor={{ stroke: '#3B82F6', strokeWidth: 1, strokeDasharray: '4 4' }}
+              cursor={{ stroke: '#22c55e', strokeWidth: 1, strokeDasharray: '4 4' }} // Green cursor
               formatter={(value: number) => [`¥${value.toFixed(2)}`, '支出']}
             />
             <Area 
               type="monotone" 
               dataKey="value" 
-              stroke="#3B82F6" 
+              stroke="#22c55e" // Green-500
               strokeWidth={2}
               fillOpacity={1} 
               fill="url(#colorValue)" 
-              activeDot={{ r: 6, strokeWidth: 0, fill: '#2563EB' }}
+              activeDot={{ r: 6, strokeWidth: 0, fill: '#16a34a' }} // Green-600
             />
           </AreaChart>
         </ResponsiveContainer>
@@ -293,7 +293,7 @@ export const Stats: React.FC<Props> = ({ transactions }) => {
                   </div>
                   <div className="h-2 w-full bg-gray-100 rounded-full overflow-hidden">
                     <div 
-                      className="h-full bg-blue-500 rounded-full" 
+                      className="h-full bg-green-500 rounded-full" // Green Bar
                       style={{ width: `${item.percent}%` }}
                     ></div>
                   </div>

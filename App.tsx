@@ -55,11 +55,6 @@ const App: React.FC = () => {
     setTransactions(prev => prev.filter(t => t.id !== id));
   };
 
-  // Calculate Totals based on Type
-  const totalBalance = transactions.reduce((sum, t) => {
-    return t.type === 'income' ? sum + t.amount : sum - t.amount;
-  }, 0);
-
   const totalExpense = transactions
     .filter(t => t.type === 'expense')
     .reduce((sum, t) => sum + t.amount, 0);
@@ -113,14 +108,9 @@ const App: React.FC = () => {
     <div className="min-h-screen pb-24 font-sans text-gray-900 max-w-lg mx-auto bg-gray-50 shadow-2xl overflow-hidden relative">
       
       {/* Header */}
-      <header className="bg-white pt-12 pb-6 px-6 rounded-b-3xl shadow-sm z-10 relative">
-        <div className="flex justify-between items-start mb-6">
-          <div>
-            <p className="text-gray-500 text-sm font-medium mb-1">总资产</p>
-            <h1 className={`text-4xl font-extrabold ${totalBalance >= 0 ? 'text-gray-900' : 'text-red-500'}`}>
-              ¥{Math.abs(totalBalance).toFixed(2)}
-            </h1>
-          </div>
+      <header className="bg-white pt-10 pb-6 px-6 rounded-b-3xl shadow-sm z-10 relative">
+        <div className="flex justify-between items-center mb-6">
+          <h1 className="text-2xl font-extrabold text-gray-900">我的账本</h1>
           <button 
             onClick={() => setShowShortcutGuide(true)}
             className="flex items-center gap-1.5 bg-blue-50 px-3 py-1.5 rounded-full hover:bg-blue-100 transition-colors active:scale-95 border border-blue-100/50"
@@ -132,19 +122,21 @@ const App: React.FC = () => {
         </div>
         
         <div className="flex gap-4">
-          <div className="bg-red-50 px-4 py-3 rounded-2xl flex-1">
-             <div className="flex items-center gap-2 mb-1">
-               <div className="w-2 h-2 rounded-full bg-red-500"></div>
-               <span className="text-xs font-bold text-red-400 uppercase">本月支出</span>
-             </div>
-             <p className="font-bold text-lg text-red-600">¥{totalExpense.toFixed(2)}</p>
-          </div>
-           <div className="bg-green-50 px-4 py-3 rounded-2xl flex-1">
+          {/* Expense - Green */}
+          <div className="bg-green-50 px-4 py-3 rounded-2xl flex-1">
              <div className="flex items-center gap-2 mb-1">
                <div className="w-2 h-2 rounded-full bg-green-500"></div>
-               <span className="text-xs font-bold text-green-400 uppercase">本月收入</span>
+               <span className="text-xs font-bold text-green-600 uppercase">本月支出</span>
              </div>
-             <p className="font-bold text-lg text-green-600">¥{totalIncome.toFixed(2)}</p>
+             <p className="font-bold text-lg text-green-700">¥{totalExpense.toFixed(2)}</p>
+          </div>
+           {/* Income - Red */}
+           <div className="bg-red-50 px-4 py-3 rounded-2xl flex-1">
+             <div className="flex items-center gap-2 mb-1">
+               <div className="w-2 h-2 rounded-full bg-red-500"></div>
+               <span className="text-xs font-bold text-red-600 uppercase">本月收入</span>
+             </div>
+             <p className="font-bold text-lg text-red-700">¥{totalIncome.toFixed(2)}</p>
           </div>
         </div>
       </header>
@@ -190,7 +182,7 @@ const App: React.FC = () => {
                       </span>
                       {group.totalExpense > 0 && (
                         <span className="text-xs text-gray-400">
-                          支出: <span className="text-gray-600 font-bold">{Math.floor(group.totalExpense)}</span>
+                          支出: <span className="text-green-600 font-bold">{Math.floor(group.totalExpense)}</span>
                         </span>
                       )}
                     </div>
