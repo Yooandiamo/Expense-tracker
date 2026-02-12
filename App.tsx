@@ -123,10 +123,11 @@ const App: React.FC = () => {
           </div>
           <button 
             onClick={() => setShowShortcutGuide(true)}
-            className="bg-blue-50 p-3 rounded-full hover:bg-blue-100 transition-colors active:scale-90"
+            className="flex items-center gap-1.5 bg-blue-50 px-3 py-1.5 rounded-full hover:bg-blue-100 transition-colors active:scale-95 border border-blue-100/50"
             aria-label="Setup iOS Shortcut"
           >
-            <Zap className="text-blue-600 w-6 h-6 fill-current" />
+            <Zap className="text-blue-600 w-4 h-4 fill-current" />
+            <span className="text-blue-700 font-bold text-xs">敲一敲记账</span>
           </button>
         </div>
         
