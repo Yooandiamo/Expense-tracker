@@ -148,12 +148,11 @@ export const SmartEntry: React.FC<Props> = ({
     <div className="fixed inset-0 z-50 overflow-y-auto no-scrollbar bg-black/40 backdrop-blur-sm animate-fade-in">
       {/* 
          Flex Wrapper: 
-         - Changed items-center to items-start: Aligns modal to top.
-         - Added pt-20: Pushes modal down by ~80px so it's not glued to top edge.
-         - sm:items-center: Keeps it centered on Desktop.
-         This ensures when keyboard opens, the top of the modal stays at pt-20 and doesn't get pushed off-screen.
+         - items-start: Align to top to handle keyboard opening without pushing header off screen.
+         - pt-4: Small top padding to respect status bar/safe area but maximize space.
+         - sm:items-center: Center on desktop.
       */}
-      <div className="min-h-full flex items-start justify-center p-4 pt-20 sm:items-center sm:pt-4">
+      <div className="min-h-full flex items-start justify-center p-4 pt-4 sm:items-center">
         
         {/* Modal Card */}
         <div className="bg-white w-full max-w-md rounded-3xl p-6 shadow-2xl relative animate-slide-up">
