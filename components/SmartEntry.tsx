@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { parseTransactionWithAI } from '../services/geminiService';
 import { ParsedTransactionData, CATEGORIES } from '../types';
 import { Button } from './Button';
@@ -19,13 +19,11 @@ export const SmartEntry: React.FC<Props> = ({ onAdd, onClose, initialText = '', 
   const [showAutoPasteOverlay, setShowAutoPasteOverlay] = useState(false);
 
   useEffect(() => {
-    // 如果有初始文本，直接开始
     if (initialText) {
       handleParse(initialText);
       return;
     }
 
-    // 如果设置了自动粘贴
     if (autoPaste) {
       attemptAutoPaste();
     }
@@ -34,18 +32,17 @@ export const SmartEntry: React.FC<Props> = ({ onAdd, onClose, initialText = '', 
 
   const attemptAutoPaste = async () => {
     try {
-      // 尝试直接读取 (Desktop Chrome 可能可以，iOS Safari 99% 会失败)
+      // 尝试静默读取 (PC Chrome 可能成功, iOS Safari 会报错)
       const text = await navigator.clipboard.readText();
       if (text) {
         setInput(text);
         handleParse(text);
       } else {
-        // 剪贴板为空，也显示覆盖层引导用户
         setShowAutoPasteOverlay(true);
       }
     } catch (err) {
-      // 权限被拒绝 (iOS Safari)，显示 "点击任意位置" 覆盖层
-      console.log("Auto paste blocked by browser, showing manual trigger UI");
+      // 权限拦截，显示“点击”覆盖层
+      console.log("需要用户交互才能读取剪贴板");
       setShowAutoPasteOverlay(true);
     }
   };
@@ -56,7 +53,7 @@ export const SmartEntry: React.FC<Props> = ({ onAdd, onClose, initialText = '', 
     
     setIsProcessing(true);
     setError(null);
-    setShowAutoPasteOverlay(false); // 确保遮罩层关闭
+    setShowAutoPasteOverlay(false);
 
     try {
       const result = await parseTransactionWithAI(text);
@@ -74,7 +71,6 @@ export const SmartEntry: React.FC<Props> = ({ onAdd, onClose, initialText = '', 
       const text = await navigator.clipboard.readText();
       setInput(text);
       setError(null);
-      // 粘贴后自动开始分析
       if (text.trim()) {
         handleParse(text);
       }
@@ -130,7 +126,6 @@ export const SmartEntry: React.FC<Props> = ({ onAdd, onClose, initialText = '', 
                 autoFocus={!showAutoPasteOverlay}
               />
               
-              {/* 普通粘贴按钮 (右下角小按钮) */}
               <div className="absolute bottom-3 right-3 flex gap-2">
                  <button 
                    onClick={handlePaste}
@@ -142,20 +137,19 @@ export const SmartEntry: React.FC<Props> = ({ onAdd, onClose, initialText = '', 
               </div>
 
               {/* 
-                 iOS Safari 安全限制对策：
-                 如果自动粘贴失败（通常因为没有用户交互），显示这个覆盖层。
-                 用户点击这个巨大的按钮会被视为“用户交互”，从而允许 navigator.clipboard.readText() 执行。
+                 iOS Safari 兼容方案：
+                 当快捷指令触发时，显示此全屏按钮。用户“盲点”屏幕任意位置即可触发剪贴板读取。
               */}
               {showAutoPasteOverlay && (
                 <div 
                   onClick={handlePaste}
-                  className="absolute inset-0 bg-blue-50/95 backdrop-blur-sm rounded-2xl flex flex-col items-center justify-center cursor-pointer border-2 border-blue-200 border-dashed animate-pulse"
+                  className="absolute inset-0 bg-blue-50/95 backdrop-blur-sm rounded-2xl flex flex-col items-center justify-center cursor-pointer border-2 border-blue-200 border-dashed animate-pulse z-10"
                 >
                   <div className="bg-blue-100 p-4 rounded-full mb-3 text-blue-600">
-                    <ScanText className="w-8 h-8" />
+                    <ScanText className="w-10 h-10" />
                   </div>
-                  <p className="text-blue-700 font-bold text-lg">点击开始识别</p>
-                  <p className="text-blue-400 text-xs mt-1">检测到快捷指令跳转</p>
+                  <p className="text-blue-700 font-bold text-xl">点击屏幕开始分析</p>
+                  <p className="text-blue-400 text-sm mt-2">已从快捷指令跳转</p>
                 </div>
               )}
             </div>
