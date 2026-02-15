@@ -28,6 +28,9 @@ export const SmartEntry: React.FC<Props> = ({
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showAutoPasteOverlay, setShowAutoPasteOverlay] = useState(false);
+  
+  // Track if any input within the modal is focused (implies keyboard might be open)
+  const [isFocused, setIsFocused] = useState(false);
 
   // Initialize parsedData
   const [parsedData, setParsedData] = useState<ParsedTransactionData | null>(() => {
@@ -148,11 +151,22 @@ export const SmartEntry: React.FC<Props> = ({
     <div className="fixed inset-0 z-50 overflow-y-auto no-scrollbar bg-black/40 backdrop-blur-sm animate-fade-in">
       {/* 
          Flex Wrapper: 
-         - items-start: Align to top to handle keyboard opening without pushing header off screen.
-         - pt-4: Small top padding to respect status bar/safe area but maximize space.
-         - sm:items-center: Center on desktop.
+         - Default: items-center (Centered) for aesthetics.
+         - On Focus (Keyboard open): items-start pt-8 (Top aligned) to prevent occlusion.
+         - transition-all: Smooth movement between states.
       */}
-      <div className="min-h-full flex items-start justify-center p-4 pt-4 sm:items-center">
+      <div 
+        className={`min-h-full flex justify-center p-4 transition-all duration-500 ease-out ${
+          isFocused ? 'items-start pt-8' : 'items-center'
+        }`}
+        onFocus={() => setIsFocused(true)}
+        onBlur={(e) => {
+          // Only reset focus state if focus moves outside the container
+          if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+            setIsFocused(false);
+          }
+        }}
+      >
         
         {/* Modal Card */}
         <div className="bg-white w-full max-w-md rounded-3xl p-6 shadow-2xl relative animate-slide-up">

@@ -3,7 +3,7 @@ import react from '@vitejs/plugin-react';
 
 export default defineConfig(({ mode }) => {
   // 加载环境变量 (包括 Vercel 设置的 API_KEY)
-  const env = loadEnv(mode, process.cwd(), '');
+  const env = loadEnv(mode, '.', '');
   return {
     plugins: [react()],
     define: {
